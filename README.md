@@ -1,14 +1,13 @@
-# XLLM - Large Language Model Attack Framework
-
-XLLM is a framework for testing and evaluating the robustness of large language models (LLMs) against various attack techniques. It implements multiple state-of-the-art attack methods to assess and help improve LLM safety.
+# AttackBench
+AttackBench is a framework for testing and evaluating the robustness of large language models (LLMs) against various attack techniques. It implements multiple state-of-the-art attack methods to assess and help improve LLM safety.
 
 interface: python
 `python --attack --model_path --evaluation --dataset --num_GPU`
-=> ASR
+=> StrongReject Score
 
 
 ## Todo
-xllm: evaluater
+AttackBench: evaluater
     - gpt evalution
     - Black list
 
@@ -68,7 +67,7 @@ This project implements several LLM attack techniques:
 ## Project Structure
 
 ```
-XLLM/
+AttackBench/
 ├── BOOST/                   # Core implementation of attack methods
 │   ├── Attack_GCG/          # Greedy Coordinate Gradient attack implementation
 │   ├── Attack_GPTFuzzer/    # GPT Fuzzer attack implementation
@@ -88,8 +87,8 @@ XLLM/
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/XLLM.git
-cd XLLM
+git clone https://github.com/robinzixuan/AttackBench.git
+cd AttackBench
 
 # Install dependencies (inferred from imports)
 conda env create -f environment.yml
