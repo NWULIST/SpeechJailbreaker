@@ -122,7 +122,7 @@ class GPTFuzzer:
         self.writter = csv.writer(self.raw_fp)
         if self.evaluation == 'strongreject':
             self.writter.writerow(
-                ['index', 'prompt', 'response', 'parent', 'results', 'scores', 'step'])
+                ['index', 'prompt', 'response', 'parent', 'scores', 'step'])
         else:
             self.writter.writerow(
                 ['index', 'prompt', 'response', 'parent', 'results', 'step'])

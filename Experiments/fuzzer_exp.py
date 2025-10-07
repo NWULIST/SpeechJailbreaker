@@ -36,7 +36,7 @@ if __name__ == "__main__":
                         help='mutate model path')
     parser.add_argument('--target_model', type=str, default='google/gemma-7b-it',
                         help='The target model, openai model or open-sourced LLMs')
-    parser.add_argument('--max_query', type=int, default=100,
+    parser.add_argument('--max_query', type=int, default=10,
                         help='The maximum number of queries')
     parser.add_argument('--max_jailbreak', type=int,
                         default=1, help='The maximum jailbreak number')
