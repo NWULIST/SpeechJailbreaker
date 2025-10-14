@@ -24,7 +24,7 @@ def evaluate_generation_strongreject(question, generation, target):
     return EvalResult(success, score)
 
 def ICA_attack(args):
-    JBC_prompts = pd.read_csv('BOOST/Attack_JBC/JBCdataset.csv')['text'].tolist()
+    JBC_prompts = pd.read_csv('Dataset/JBCdataset.csv')['text'].tolist()
     
     target_model = LocalLLM(args.target_model)
     for index in range(args.num_tasks):
