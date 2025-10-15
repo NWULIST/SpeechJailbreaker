@@ -1,5 +1,5 @@
-# AttackBench
-AttackBench is a framework for testing and evaluating the robustness of large language models (LLMs) against various attack techniques. It implements multiple state-of-the-art attack methods to assess and help improve LLM safety.
+# SpeechJailbreaker
+SpeechJailbreaker is a framework for testing and evaluating the robustness of large language models (LLMs) against various attack techniques. It implements multiple state-of-the-art attack methods to assess and help improve LLM safety.
 
 interface: python
 `python --attack --model_path --evaluation --dataset --num_GPU`
