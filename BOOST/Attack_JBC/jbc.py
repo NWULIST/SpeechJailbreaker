@@ -23,7 +23,7 @@ def evaluate_generation_strongreject(question, generation, target):
     score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
     return EvalResult(success, score)
 
-def ICA_attack(args):
+def JBC_attack(args):
     JBC_prompts = pd.read_csv('Dataset/JBCdataset.csv')['text'].tolist()
     
     target_model = LocalLLM(args.target_model)
