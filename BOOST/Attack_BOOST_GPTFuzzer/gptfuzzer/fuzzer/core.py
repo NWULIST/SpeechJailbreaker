@@ -174,7 +174,10 @@ class GPTFuzzer:
     
         # Prepare messages for batch generation and track valid prompts
         for i, prompt_node in enumerate(prompt_nodes):
-            message = synthesis_message(self.questions_txt[0], prompt_node.prompt)
+            if 'Qwen2-Audio' in self.target.model_path:
+                message = synthesis_message(self.questions_txt[0], "<|audio_eos|>" + prompt_node.prompt)
+            else:
+                message = synthesis_message(self.questions_txt[0], prompt_node.prompt)
             if message is not None:
                 messages.append(message)
                 

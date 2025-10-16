@@ -9,7 +9,7 @@ from gptfuzzer.fuzzer.mutator import (
     MutateRandomSinglePolicy, OpenAIMutatorCrossOver, OpenAIMutatorExpand,
     OpenAIMutatorGenerateSimilar, OpenAIMutatorRephrase, OpenAIMutatorShorten)
 from gptfuzzer.fuzzer import GPTFuzzer
-from gptfuzzer.llm import OpenAILLM, LocalVLLM, LocalLLM, ClaudeLLM, GeminiLLM, LocalSpeechLLM
+from gptfuzzer.llm import OpenAILLM, LocalLLM, ClaudeLLM, GeminiLLM, LocalSpeechLLM
 from gptfuzzer.utils.predict import RoBERTaPredictor
 import random
 from BOOST.utils.templates import get_eos

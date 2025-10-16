@@ -10,7 +10,7 @@ import argparse
 import random
 import numpy as np
 import torch
-from BOOST.Attack_GPTFuzzer.gptfuzz import fuzzer_attack
+from BOOST.Attack_BOOST_GPTFuzzer.gptfuzz import fuzzer_attack
 from fastchat.model import add_model_args
 from BOOST.utils.constants import claude_key, gemini_key
 from BOOST.utils.templates import get_eos
