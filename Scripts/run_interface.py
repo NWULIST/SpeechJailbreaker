@@ -12,6 +12,7 @@ ATTACK_TO_SCRIPT = {
     'ica': 'run_ICA.sh',
     'sure': 'run_SURE.sh',
     'reasoning': 'run_reasoning.sh',
+    'jbc': 'run_JBC.sh'
     'boost_fuzzer': 'run_boost_GPTFuzzer.sh',
 }
 
