@@ -13,14 +13,15 @@ ATTACK_TO_SCRIPT = {
     'sure': 'run_SURE.sh',
     'reasoning': 'run_reasoning.sh',
     'jbc': 'run_JBC.sh'
+    'boost_fuzzer': 'run_boost_GPTFuzzer.sh',
 }
 
 def main():
     parser = argparse.ArgumentParser(description='Unified Python interface for running attack scripts.')
     parser.add_argument('--attack', required=True, choices=ATTACK_TO_SCRIPT.keys(), help='Attack method to run (gcg, fuzzer, ica, sure, reasoning)')
-    parser.add_argument('--model_path', required=False, default='/projects/p32013/neurons/reasoning_steps_CL/contrastive_model/final', help='Model path to pass to the attack script')
+    parser.add_argument('--model_path', required=False, default='/projects/e33046/neurons/reasoning_steps_CL/contrastive_model/final', help='Model path to pass to the attack script')
     parser.add_argument('--evaluation', required=False, default='strongreject', help='Evaluation method to pass to the attack script (default or strongreject)')
-    parser.add_argument('--num_tasks', type=int, default=50, help='Number of tasks to run in parallel (default: 3)')
+    parser.add_argument('--num_tasks', type=int, default=1, help='Number of tasks to run in parallel (default: 3)')
     args = parser.parse_args()
 
     script_name = ATTACK_TO_SCRIPT[args.attack]

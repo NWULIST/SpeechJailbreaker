@@ -61,7 +61,7 @@ def calculate_average_score(csv_directory):
     return avg_score
 
 def main():
-    csv_directory = "Results/projects/p32013/neurons/reasoning_steps_CL/contrastive_model/final/GPTFuzzer-2/"
+    csv_directory = "Results/projects/e33046/neurons/reasoning_steps_CL/contrastive_model/final/GPTFuzzer-2/"
     print("Calculating average score (treat empty files as 0)...")
 
     avg_score = calculate_average_score(csv_directory)

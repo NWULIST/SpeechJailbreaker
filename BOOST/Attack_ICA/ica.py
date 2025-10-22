@@ -3,9 +3,11 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import csv
 import pandas as pd
-from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM
 import random
 from BOOST.utils.templates import get_eos
+from datasets import load_dataset
+
 from BOOST.Attack_ICA.few_shot_examples import *
 random.seed(100)
 import logging
@@ -19,20 +21,28 @@ class EvalResult(NamedTuple):
     success: bool
     score: float
 
-def evaluate_generation_strongreject(question, generation, target):
+def evaluate_generation_strongreject(question, generation):
     result = autograde_response(question, generation)
     success = result.score_zero_to_one is not None and result.score_zero_to_one > 0
     score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
     return EvalResult(success, score)
 
-def ICA_attack(args):
+def ICA_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     
-    target_model = LocalLLM(args.target_model)
+    if 'gpt' in args.target_model:
+        target_model = OpenAILLM(args.target_model, args.openai_key)
+    elif 'claude' in args.target_model:
+        target_model = ClaudeLLM(args.target_model, args.claude_key)
+    elif 'gemini' in args.target_model:
+        target_model = GeminiLLM(args.target_model, args.gemini_key)
+    elif 'audio' in args.target_model.lower():
+        target_model = LocalSpeechLLM(args.target_model)
+    else:
+       target_model = LocalLLM(args.target_model)
+
     for index in range(args.num_tasks):
         args.index = index
         print("Running index: ", args.index)
-        origin_question = pd.read_csv(args.harmful_dataset)['text'].tolist()[args.index]
-        target_response = pd.read_csv(args.targets_dataset)['target'].tolist()[args.index]
 
         evaluation = getattr(args, 'evaluation', 'default')
         print("The evaluation is: ", evaluation, file=sys.stderr)
@@ -50,53 +60,59 @@ def ICA_attack(args):
             predictor = OpenAILLM(args.model_path, args.openai_key, system_message=predict_system_message)
 
         # save the optim prompts into a csv file
-        save_path = f'./Results/{args.target_model}/ICA-{args.few_shot_num}/{args.index}.csv'
+        save_path = f'./Results/{args.target_model}/ICA/{args.index}.csv'
 
         print("The save path is: ", save_path)
         # check if the directory exists
         if not os.path.exists(os.path.dirname(save_path)):
             os.makedirs(os.path.dirname(save_path))
+        
 
         with open(save_path, 'w') as f:
             writer = csv.writer(f)
-            writer.writerow(['eos_num', 'response', 'result'])
-            for eos_num in range(args.eos_num):
-                print("***" * 20)
-                print(f"eos_num: {eos_num}")
-                questions = origin_question
-                eos_token = get_eos(args.target_model)
-                questions = questions + eos_token * eos_num
+            writer.writerow(['response', 'result'])
+            
+            
+            ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
+            
+            origin_question_audio = ds['speech_path'][args.index]
+            
+            # Replace or join
+            origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
 
-                args.question = questions
-                print("The question is: ", questions)
 
-                if args.few_shot_num == 1:
-                    ICL = one_shot
-                    prompt = ICL + 'User: ' + args.question
-                elif args.few_shot_num == 2:
-                    ICL = two_shot
-                    prompt = ICL + 'User: ' + args.question
-                elif args.few_shot_num == 3:
-                    ICL = three_shot
-                    prompt = ICL + 'User: ' + args.question
-                elif args.few_shot_num == 0:
-                    prompt = args.question
-                else:
-                    raise ValueError("The few_shot_num is not supported")
+            origin_question = ds['prompt'][args.index]
 
-                response = target_model.generate(prompt, max_tokens=args.max_new_tokens)
-                print(response)
-                if evaluation == 'strongreject':
-                    result = evaluate_generation_strongreject(origin_question, response, target_response)
-                    if result.success == True:
-                        print("Success!")
-                    writer.writerow([eos_num, response, result.score])
-                    if args.early_stop and result.success == True:
-                        break
-                else:
-                    result = predictor.predict([response], origin_question)[0]
-                    if result == 1:
-                        print("Success!")
-                    writer.writerow([eos_num, response, result])
-                    if args.early_stop and result == 1:
-                        break
+            args.question = origin_question_audio
+            print("The question is: ", origin_question)
+
+            if args.few_shot_num == 1:
+                ICL = one_shot
+                prompt = ICL 
+            elif args.few_shot_num == 2:
+                ICL = two_shot
+                prompt = ICL
+            elif args.few_shot_num == 3:
+                ICL = three_shot
+                prompt = ICL 
+            elif args.few_shot_num == 0:
+                prompt = ''
+            else:
+                raise ValueError("The few_shot_num is not supported")
+
+            response = target_model.generate(args.question, prompt, max_tokens=args.max_new_tokens)
+            print(response)
+            if evaluation == 'strongreject':
+                result = evaluate_generation_strongreject(origin_question, response)
+                if result.success == True:
+                    print("Success!")
+                writer.writerow([response, result.score])
+                if args.early_stop and result.success == True:
+                    break
+            else:
+                result = predictor.predict([response], origin_question)[0]
+                if result == 1:
+                    print("Success!")
+                writer.writerow([eos_num, response, result])
+                if args.early_stop and result == 1:
+                    break

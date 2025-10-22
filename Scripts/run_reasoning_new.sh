@@ -1,7 +1,7 @@
 #!/bin/bash
 
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/p32013/.cache/"
+export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 

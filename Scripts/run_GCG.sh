@@ -1,6 +1,6 @@
 #!/bin/bash
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/p32013/.cache/"
+export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
@@ -8,7 +8,7 @@ PYTHON_SCRIPT="./Experiments/gcg_exp.py"
 MODEL_PATH="google/gemma-7b-it"
 EVALUATION="default"
 RUN_INDEX=2
-ADD_EOS=True
+ADD_EOS=False
 EOS_NUM="10"
 
 # GPU
