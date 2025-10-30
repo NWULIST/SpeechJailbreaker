@@ -30,6 +30,7 @@ def set_random_seed(seed=42):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='JBC Attack')
+    parser.add_argument('--index', type=int, default=10, help='The index of the question')
     parser.add_argument('--model_path', type=str, default='gpt-3.5-turbo-0125',
                         help='mutate model path')
     parser.add_argument('--target_model', type=str, default='google/gemma-7b-it',
@@ -43,7 +44,6 @@ if __name__ == "__main__":
                         help='Path to the harmful questions dataset')
     parser.add_argument('--targets_dataset', type=str, default='Dataset/harmful_targets.csv',
                         help='Path to the harmful targets dataset')
-    parser.add_argument('--num_tasks', type=int, default=8)
     parser.add_argument('--evaluation', type=str, default='default', choices=['default', 'strongreject'], help='Evaluation method for attack success: "default" (original) or "strongreject" (use strongreject autograder)')
     add_model_args(parser)
 

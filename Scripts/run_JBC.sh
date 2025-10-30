@@ -1,14 +1,13 @@
 #!/bin/bash
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/p32013/.cache/"
+export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-
 PYTHON_SCRIPT="./Experiments/jbc_exp.py"
-MODEL_PATH="google/gemma-7b-it"
+MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="default"
 RUN_INDEX=2
-ADD_EOS=True
+ADD_EOS=False
 EOS_NUM="10"
 
 # GPU
@@ -28,18 +27,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --evaluation)
       EVALUATION="$2"
-      shift 2
-      ;;
-    --run_index)
-      RUN_INDEX="$2"
-      shift 2
-      ;;
-    --add_eos)
-      ADD_EOS="$2"
-      shift 2
-      ;;
-    --eos_num)
-      EOS_NUM="$2"
       shift 2
       ;;
     --gpu_memory)
@@ -114,8 +101,8 @@ for index in $(seq 0 $NUM_TASKS); do
 
     (
         echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH $ADD_EOS_FLAG --run_index $index  --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET --num_tasks $NUM_TASKS > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH $ADD_EOS_FLAG --run_index $index  --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" --num_tasks  $NUM_TASKS > "${LOG_PATH}/${index}.log" 2>&1
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH   --evaluation $EVALUATION --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET --index $index   > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --evaluation $EVALUATION --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" --index $index  > "${LOG_PATH}/${index}.log" 2>&1
         echo "Task $index on GPU $FREE_GPU finished."
     ) &
 
