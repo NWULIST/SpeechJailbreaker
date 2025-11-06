@@ -15,6 +15,7 @@ ATTACK_TO_SCRIPT = {
     'jbc': 'run_JBC.sh',
     'boost_fuzzer': 'run_boost_GPTFuzzer.sh',
     'tap': 'run_TAP.sh',
+    'AutoAttack': 'run_AutoAttack.sh',
 }
 
 def main():
