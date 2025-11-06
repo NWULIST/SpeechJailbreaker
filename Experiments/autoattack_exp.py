@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 sys.path.append(os.path.abspath('../BOOST'))
 
-from BOOST.Attack_AutoAttack import audio_autoattack as run_audio_autoattack
+from BOOST.Attack_Autoattack import audio_autoattack as run_audio_autoattack
 
 load_dotenv()
 openai_key = os.getenv('OPENAI_API_KEY')
