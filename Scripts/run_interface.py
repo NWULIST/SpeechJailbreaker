@@ -14,6 +14,7 @@ ATTACK_TO_SCRIPT = {
     'reasoning': 'run_reasoning.sh',
     'jbc': 'run_JBC.sh',
     'boost_fuzzer': 'run_boost_GPTFuzzer.sh',
+    'tap': 'run_TAP.sh',
 }
 
 def main():
