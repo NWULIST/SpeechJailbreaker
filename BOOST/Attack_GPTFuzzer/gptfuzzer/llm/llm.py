@@ -13,8 +13,25 @@ from vllm import SamplingParams
 from BOOST.utils.constants import *
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 import google.generativeai as genai
-from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, AutoModel, Qwen2AudioForConditionalGeneration
+from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, AutoModel, Qwen2AudioForConditionalGeneration, AutoModelForImageTextToText
+def get_hf_token():
+    """Get HuggingFace token from environment or cached login"""
+    # Try environment variable first
+    token = os.environ.get('HF_TOKEN') or os.environ.get('HUGGINGFACE_TOKEN')
+    if token:
+        return token
 
+    # Try to read from huggingface-cli cache
+    try:
+        from huggingface_hub import HfFolder
+        token = HfFolder.get_token()
+        if token:
+            return token
+    except Exception as e:
+        print(f"Warning: Could not read HF token from cache: {e}")
+
+    return None 
+hf_token = get_hf_token()
 class LLM:
     def __init__(self):
         self.model = None
@@ -258,12 +275,26 @@ class OpenAILLM(LLM):
     def generate(self, prompt, temperature=0, max_tokens=512, n=1, max_trials=10, failure_sleep_time=5):
         for _ in range(max_trials):
             try:
-                results = self.client.chat.completions.create(
-                    model=self.model_path,
-                    messages=[
+                if 'gpt-4o' in self.model_path.lower() or 'gpt-4-turbo' in self.model_path.lower():
+                    prompt_text = prompt if isinstance(prompt, str) else str(prompt)
+                    messages = [
+                        {"role": "system", "content": [{"type": "text", "text": self.system_message}]},
+                        {"role": "user", "content": [{"type": "text", "text": prompt_text}]},
+                    ]
+                else:
+                    # For other models, use simple string format
+                    messages = [
                         {"role": "system", "content": self.system_message},
                         {"role": "user", "content": prompt},
-                    ],
+                    ]
+                results = self.client.chat.completions.create(
+                    model=self.model_path,
+                    # messages=[
+                    #     {"role": "system", "content": self.system_message},
+                    #     {"role": "user", "content": prompt},
+                    # ],
+
+                    messages = messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     n=n,
@@ -354,7 +385,7 @@ class LocalSpeechLLM(LLM):
                  model_path,
                  device='cuda',
                  dtype=torch.float16,
-                 load_8bit=False,
+                 load_8bit=True,
                  cpu_offloading=False,
                  system_message=None
                  ):
@@ -369,7 +400,7 @@ class LocalSpeechLLM(LLM):
         )
         self.model_path = model_path
 
-        if system_message is None and any(m in model_path for m in ["Llama-2", "Qwen2"]):
+        if system_message is None and any(m in model_path for m in ["Llama-2", "Qwen2", "gemma"]):
             # monkey patch for latest FastChat to use llama2's official system message
             self.system_message = "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. " \
             "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. " \
@@ -397,6 +428,15 @@ class LocalSpeechLLM(LLM):
             model = model.to(device)
             processor = AutoProcessor.from_pretrained(
                 model_path, trust_remote_code=True
+            )
+            return model, processor
+        elif 'gemma' in model_path:
+            model = AutoModelForImageTextToText.from_pretrained(
+                model_path, trust_remote_code=True, token=hf_token
+            )
+            model = model.to(device)
+            processor = AutoProcessor.from_pretrained(
+                model_path, trust_remote_code=True, token=hf_token
             )
             return model, processor
         return None, None
@@ -481,11 +521,16 @@ class LocalSpeechLLM(LLM):
                             )
 
         inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
-        inputs['input_ids'] = inputs['input_ids'].to("cuda")
-        inputs.input_ids = inputs.input_ids.to("cuda")
+        # inputs['input_ids'] = inputs['input_ids'].to("cuda")
+        # inputs.input_ids = inputs.input_ids.to("cuda")
+        device = next(self.model.parameters()).device
+        inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
+        input_ids_length = inputs['input_ids'].size(1)
 
         generate_ids = self.model.generate(**inputs, max_length=1024)
-        generate_ids = generate_ids[:, inputs.input_ids.size(1):]
+
+        # Remove the input tokens from the generated output
+        generate_ids = generate_ids[:, input_ids_length:]
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
         return response
