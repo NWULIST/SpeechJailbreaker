@@ -113,7 +113,17 @@ class WandBLogger:
             
         else:
             print("No jailbreaks achieved.")
-            max_score = df['judge_scores'].max()
-            print(f"Max Score: {max_score}")
+            # Check if dataframe has data and the required column
+            if len(df) > 0 and 'judge_scores' in df.columns:
+                max_score = df['judge_scores'].max()
+                print(f"Max Score: {max_score}")
+            else:
+                print("No evaluation data available (attack may have failed early).")
 
-        self.table.to_parquet(common.STORE_FOLDER + '/' + f'iter_{common.ITER_INDEX}_df')
+        # Only save if we have data
+        if len(self.table) > 0:
+            self.table.to_parquet(common.STORE_FOLDER + '/' + f'iter_{common.ITER_INDEX}_df')
+        else:
+            print("No data to save (table is empty).")
+
+        #self.table.to_parquet(common.STORE_FOLDER + '/' + f'iter_{common.ITER_INDEX}_df')

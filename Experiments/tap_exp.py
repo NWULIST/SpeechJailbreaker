@@ -5,16 +5,19 @@ load_dotenv()
 openai_key = os.getenv('OPENAI_API_KEY')
 
 # Add the path to the BOOST folder to sys.path
-sys.path.append(os.path.abspath('../BOOST'))
-sys.path.append(os.path.abspath('../BOOST/Attack_TAP'))
-
+#sys.path.append(os.path.abspath('../BOOST'))
+#sys.path.append(os.path.abspath('../BOOST/Attack_TAP'))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+sys.path.insert(0, project_root)
 import argparse
 import random
 import numpy as np
 import torch
 import pandas as pd
 from BOOST.utils.constants import claude_key, gemini_key
-
+# from huggingface_hub import login 
+# login()
 
 def set_random_seed(seed=42):
     """Set random seed for reproducibility across different libraries."""
@@ -47,9 +50,9 @@ if __name__ == "__main__":
     
     # Dataset parameters
     parser.add_argument('--index', type=int, default=0, help='The index of the question')
-    parser.add_argument('--harmful_dataset', type=str, default='Dataset/harmful.csv',
+    parser.add_argument('--harmful_dataset', type=str, default='/home/vaz5542/projects/AttackBench/Dataset/harmful.csv',
                         help='Path to the harmful questions dataset')
-    parser.add_argument('--targets_dataset', type=str, default='Dataset/harmful_targets.csv',
+    parser.add_argument('--targets_dataset', type=str, default='/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv',
                         help='Path to the harmful targets dataset')
     
     # Model parameters
@@ -114,22 +117,33 @@ if __name__ == "__main__":
     os.environ['OPENAI_API_KEY'] = openai_key
     args.openai_key = openai_key
     args.claude_key = claude_key
-    args.gemini_key = gemini_key
-    
+    #args.gemini_key = gemini_key
+    args.gemini_key = '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'
     # Read goal and target_str from CSV if not provided
     if args.goal is None:
-        args.goal = read_csv_row(args.harmful_dataset, args.index, column_name='text')
+        print("123214")
+        print(args.harmful_dataset)
+        args.harmful_dataset = "/home/vaz5542/projects/AttackBench/Dataset/harmful.csv"
+        print(args.harmful_dataset)
+        data_path = "/home/vaz5542/projects/AttackBench/Dataset/harmful.csv"
+        #args.goal = read_csv_row(args.harmful_dataset, args.index, column_name='text')
+        args.goal = read_csv_row(data_path, args.index, column_name='text')
         print(f"Loaded goal from {args.harmful_dataset}: {args.goal}")
     
     if args.target_str is None:
-        args.target_str = read_csv_row(args.targets_dataset, args.index, column_name='target')
+        args.harmful_targets = "/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv"
+        targets_path = "/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv"
+        args.target_str = read_csv_row(targets_path, args.index, column_name='target')
         print(f"Loaded target_str from {args.targets_dataset}: {args.target_str}")
     
     # Set default store folder if not provided
     if args.store_folder is None:
-        args.store_folder = f'./Results/TAP/run_{args.run_index}'
-        os.makedirs(args.store_folder, exist_ok=True)
-    
+        #args.store_folder = f'./Results/TAP/run_{args.run_index}'
+        #os.makedirs(args.store_folder, exist_ok=True)
+        args.store_folder = os.path.join(project_root, 'Results', 'TAP', f'run_{args.run_index}')
+    if not os.path.isabs(args.store_folder):
+        args.store_folder = os.path.join(project_root, args.store_folder)
+    os.makedirs(args.store_folder, exist_ok=True)
     print("=" * 60)
     print("TAP Attack Configuration")
     print("=" * 60)
@@ -149,8 +163,8 @@ if __name__ == "__main__":
     
     # Import and run TAP main function
     try:
-        from BOOST.Attack_TAP.main_TAP import main as tap_main
-        tap_main(args)
+        from BOOST.Attack_TAP.TAP import tap_attack
+        tap_attack(args)
     except Exception as e:
         print(f"Error running TAP attack: {e}")
         import traceback

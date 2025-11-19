@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 import anthropic
 import os
 import time
@@ -202,8 +202,12 @@ class GPT(LanguageModel):
     API_QUERY_SLEEP = 0.5
     API_MAX_RETRY = 20
     API_TIMEOUT = 20
-    
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+    def __init__(self, model_name, token=None):
+        self.model_name = model_name
+        self.token = token
+        self.client = OpenAI()   
+          
+    OpenAI.api_key = os.getenv("OPENAI_API_KEY")
 
     def generate(self, conv: List[Dict], 
                 max_n_tokens: int, 
@@ -222,15 +226,24 @@ class GPT(LanguageModel):
         for _ in range(self.API_MAX_RETRY):
             try: 
                 
-                response = openai.ChatCompletion.create(
+                # response = openai.ChatCompletion.create(
+                #             model = self.model_name,
+                #             messages = conv,
+                #             max_tokens = max_n_tokens,
+                #             temperature = temperature,
+                #             top_p = top_p,
+                #             request_timeout = self.API_TIMEOUT,
+                #             )
+                # output = response["choices"][0]["message"]["content"]
+                response = self.client.chat.completions.create(
                             model = self.model_name,
                             messages = conv,
                             max_tokens = max_n_tokens,
                             temperature = temperature,
                             top_p = top_p,
-                            request_timeout = self.API_TIMEOUT,
+                            timeout = self.API_TIMEOUT,  # request_timeout 改为 timeout
                             )
-                output = response["choices"][0]["message"]["content"]
+                output = response.choices[0].message.content  # 字典访问改为属性访问
                 break
             except Exception as e: 
                 print(type(e), e)
