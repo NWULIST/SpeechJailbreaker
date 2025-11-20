@@ -138,7 +138,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--evaluation', 
         type=str, 
-        default='default', 
+        default='strongreject', 
         choices=['default', 'strongreject'], 
         help='Evaluation method for attack success: "default" (original) or "strongreject" (use strongreject autograder)'
     )

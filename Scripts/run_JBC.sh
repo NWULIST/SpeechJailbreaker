@@ -13,7 +13,7 @@ EOS_NUM="10"
 # GPU
 GPU_MEMORY=40000
 NUM_GPU_SEARCH=7
-NUM_TASKS=3 # Number of tasks to run in parallel
+NUM_TASKS=1 # Number of tasks to run in parallel
 
 # Dataset paths
 HARMFUL_DATASET="Dataset/harmful.csv"
