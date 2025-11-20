@@ -109,10 +109,12 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     with open(save_path, 'w', newline='', encoding='utf-8') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow([
-            "iteration", "attack_id", "prompt", "target_response", "score", "processed_response"
+            "score", "iteration", "attack_id", "prompt", "target_response", "processed_response"
         ])
 
-        for iteration in range(1, args.n_iterations + 1):
+        total_score = 0.0
+        total_count = 0
+        for iteration in range(0, args.n_iterations + 1):
             logger.info(f"""\n{'='*36}\nIteration: {iteration}\n{'='*36}\n""")
             if iteration > 1:
                 processed_response_list = [process_target_response(target_response, score, origin_question, args.target_str) for target_response, score in zip(target_response_list,judge_scores)]
@@ -192,11 +194,16 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
                         for target_response, score in zip(target_response_list, judge_scores)
                 ]
             
+            
             for attack_id, (prompt, response, score, processed) in enumerate(
                 zip(adv_prompt_list, target_response_list, judge_scores, processed_response_list)
             ):
-                writer.writerow([iteration, attack_id, prompt, response, score, processed])
+                total_score += score
+                total_count += 1
+                writer.writerow([score, iteration, attack_id, prompt, response, processed])
             csv_file.flush()
+        ASR = total_score / total_count
+        print("ASR: ", ASR)
     csv_file.close()
 
 
