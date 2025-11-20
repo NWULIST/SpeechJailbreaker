@@ -69,6 +69,10 @@ def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     with open(save_path, 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['jbc_prompt_id', 'response', 'result'])
+
+        total_score = 0.0
+        total_count = 0
+
         for jbc_id, jbc_prompt in enumerate(JBC_prompts):
             print("***" * 20)
             print(f"jbc_prompt_id: {jbc_id}")
@@ -85,6 +89,10 @@ def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
             print(response)
             if evaluation == 'strongreject':
                 result = evaluate_generation_strongreject(origin_question, response)
+
+                total_score += result.score
+                total_count += 1
+
                 if result.success == True:
                     print("Success!")
                 writer.writerow([jbc_id, response, result.score])
@@ -97,3 +105,6 @@ def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
                 writer.writerow([jbc_id, response, result])
                 if args.early_stop and result == 1:
                     break
+                    
+        ASR = total_score / total_count
+        print ("ASR: ", ASR)
