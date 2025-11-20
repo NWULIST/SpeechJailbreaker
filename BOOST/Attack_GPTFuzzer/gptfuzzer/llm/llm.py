@@ -480,12 +480,20 @@ class LocalSpeechLLM(LLM):
                                     sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
+        # inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
+        # inputs['input_ids'] = inputs['input_ids'].to("cuda")
+        # inputs.input_ids = inputs.input_ids.to("cuda")
+        # inputs = {k: v.to(self.model.device) for k, v in inputs.items()}  # ✅ ensure same device
+
+
+        # generate_ids = self.model.generate(**inputs, max_length=1024)
+        # generate_ids = generate_ids[:, inputs.input_ids.size(1):]
+
         inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
-        inputs['input_ids'] = inputs['input_ids'].to("cuda")
-        inputs.input_ids = inputs.input_ids.to("cuda")
+        inputs = {k: v.to(self.model.device) for k, v in inputs.items()}  # ✅ correct and safe
 
         generate_ids = self.model.generate(**inputs, max_length=1024)
-        generate_ids = generate_ids[:, inputs.input_ids.size(1):]
+        generate_ids = generate_ids[:, inputs["input_ids"].size(1):]  # ✅ works
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
         return response

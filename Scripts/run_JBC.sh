@@ -55,12 +55,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+LOG_PATH="Logs/${MODEL_PATH}/JBC-${RUN_INDEX}"
 
-if [ "$ADD_EOS" = "True" ]; then
-    LOG_PATH="Logs/${MODEL_PATH}/JBC_eos-${RUN_INDEX}"
-else
-    LOG_PATH="Logs/${MODEL_PATH}/JBC-${RUN_INDEX}"
-fi
 
 
 # Create the log directory if it does not exist
