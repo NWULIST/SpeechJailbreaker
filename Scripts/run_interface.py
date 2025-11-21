@@ -20,13 +20,13 @@ ATTACK_TO_SCRIPT = {
 }
 
 Defence_TO_SCRIPT = {
-    'ica': 'run_ICA.sh',
+    'icd': '/projects/e33046/AttackBench/Defense_prompt/ICD.json',
 }
 
 def main():
     parser = argparse.ArgumentParser(description='Unified Python interface for running attack scripts.')
     parser.add_argument('--attack', required=True, default='tap', choices=ATTACK_TO_SCRIPT.keys(), help='Attack method to run')
-    parser.add_argument('--defence', required=False, default='icd', choices=Defence_TO_SCRIPT.keys(), help='Defence method to run')
+    parser.add_argument('--defence', required=False, default=None, choices=Defence_TO_SCRIPT.keys(), help='Defence method to run')
     parser.add_argument('--model_path', required=False, default='Qwen/Qwen2-Audio-7B-Instruct', help='Model path to pass to the attack script')
     parser.add_argument('--evaluation', required=False, default='strongreject', help='Evaluation method to pass to the attack script (default or strongreject)')
     parser.add_argument('--num_tasks', type=int, default=2, help='Number of tasks to run in parallel (default: 3)')
@@ -40,7 +40,7 @@ def main():
     # env['MODEL_PATH'] = args.model_path
     # env['EVALUATION'] = args.evaluation
 
-    print(f"[INFO] Running {script_name} with MODEL_PATH={args.model_path} and EVALUATION={args.evaluation}")
+    print(f"[INFO] Running {script_name} under Defence {args.defence} with MODEL_PATH={args.model_path} and EVALUATION={args.evaluation}")
     try:
         result = subprocess.run([script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks)], check=True)
         sys.exit(result.returncode)

@@ -130,6 +130,17 @@ def tap_attack(args, base_dir="/projects/e33046/AudioJailbreak"):
     if getattr(args, 'store_folder', None):
         os.makedirs(args.store_folder, exist_ok=True)
 
+
+    system_message = None
+    if args.defence != '':
+        # Check if args.defence is a file path
+        if isinstance(args.defence, str) and os.path.isfile(args.defence):
+            with open(args.defence, 'r') as f:
+                system_message = json.load(f)['prompt']
+        else:
+            # If it's already a file object or other type, try to load directly
+            system_message = json.load(args.defence)['prompt']
+
     if 'gpt' in args.target_model:
         target_model = OpenAILLM(args.target_model, args.openai_key)
     elif 'claude' in args.target_model:
@@ -139,9 +150,9 @@ def tap_attack(args, base_dir="/projects/e33046/AudioJailbreak"):
     elif 'audio' in args.target_model.lower():
         target_model = LocalSpeechLLM(args.target_model)
     elif 'gemma' in args.target_model.lower():
-        target_model = LocalSpeechLLM(args.target_model)
+        target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
-        target_model = LocalLLM(args.target_model)
+        target_model = LocalLLM(args.target_model, system_message=system_message)
 
     ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
     origin_question_audio = ds['speech_path'][args.index]

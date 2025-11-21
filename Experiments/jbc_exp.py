@@ -30,7 +30,7 @@ def set_random_seed(seed=42):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='JBC Attack')
-    parser.add_augument('--defence', type=str, default='', help='defence file location')
+    parser.add_argument('--defence', type=str, default='', help='defence file location')
     parser.add_argument('--index', type=int, default=10, help='The index of the question')
     parser.add_argument('--model_path', type=str, default='gpt-3.5-turbo-0125',
                         help='mutate model path')

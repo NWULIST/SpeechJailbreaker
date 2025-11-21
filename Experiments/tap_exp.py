@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument('--index', type=int, default=0, help='The index of the question')
     parser.add_argument('--harmful_dataset', type=str, default='/home/vaz5542/projects/AttackBench/Dataset/harmful.csv',help='Path to the harmful questions dataset')
     parser.add_argument('--targets_dataset', type=str, default='/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv', help='Path to the harmful targets dataset')
-    parser.add_augument('--defence', type=str, default='', help='defence file location')
+    parser.add_argument('--defence', type=str, default='', help='defence file location')
     
     # Model parameters
     parser.add_argument('--target_model', type=str, default='gpt-3.5-turbo',
