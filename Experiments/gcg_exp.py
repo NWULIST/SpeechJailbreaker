@@ -48,6 +48,7 @@ if __name__ == "__main__":
     parser.add_argument('--index', type=int, default=0, help='The index of the question')
     parser.add_argument('--model_path', type=str, default='allenai/tulu-2-dpo-7b',
                         help='target model path')
+    parser.add_augument('--defence', type=str, default='', help='defence file location')
     parser.add_argument("--control_string_length", type=int, default=20)
     parser.add_argument("--max_attack_steps", type=int, default=500)
     parser.add_argument("--early_stop", type=bool, default=False)

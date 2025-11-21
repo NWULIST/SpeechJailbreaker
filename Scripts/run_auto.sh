@@ -155,7 +155,7 @@ for index in $(seq 0 $NUM_TASKS); do
         CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION 2>&1 | tee "${LOG_PATH}/${index}.log"
 
         echo "[TASK $index] Task finished on GPU $FREE_GPU at $(date '+%Y-%m-%d %H:%M:%S')"
-    ) &
+    ) 
 
     TASK_PID=$!
     echo "[TASK $index] Background process PID: $TASK_PID"

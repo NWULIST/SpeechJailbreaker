@@ -18,6 +18,7 @@ NUM_TASKS=3 # Number of tasks to run in parallel
 # Dataset paths
 HARMFUL_DATASET="Dataset/harmful.csv"
 TARGETS_DATASET="Dataset/harmful_targets.csv"
+defence = ""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -51,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --num_tasks)
       NUM_TASKS="$2"
+      shift 2
+      ;;
+    --defence)
+      defence="$2"
       shift 2
       ;;
     --harmful_dataset)
@@ -113,8 +118,8 @@ for FEW_SHOT_NUM in {0..1}; do
 
     (
         echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH $ADD_EOS_FLAG --few_shot_num $FEW_SHOT_NUM  --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET --num_tasks $NUM_TASKS > ${LOG_PATH}/${FEW_SHOT_NUM}.log 2>&1" >> ${LOG_PATH}/${FEW_SHOT_NUM}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH $ADD_EOS_FLAG --few_shot_num $FEW_SHOT_NUM  --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" --num_tasks  $NUM_TASKS > "${LOG_PATH}/${FEW_SHOT_NUM}.log" 2>&1
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH $ADD_EOS_FLAG --few_shot_num $FEW_SHOT_NUM  --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET --num_tasks $NUM_TASKS --defence $defence > ${LOG_PATH}/${FEW_SHOT_NUM}.log 2>&1" >> ${LOG_PATH}/${FEW_SHOT_NUM}.log
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH $ADD_EOS_FLAG --few_shot_num $FEW_SHOT_NUM  --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" --num_tasks  $NUM_TASKS --defence $defence > "${LOG_PATH}/${FEW_SHOT_NUM}.log" 2>&1
         echo "Task $index on GPU $FREE_GPU finished."
     ) &
 

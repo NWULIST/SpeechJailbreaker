@@ -36,6 +36,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='AutoAttack parameters')
 
     # Basic parameters
+    parser.add_augument('--defence', type=str, default='', help='defence file location')
     parser.add_argument('--index', type=int, default=0,
                         help='The index of the question')
     parser.add_argument('--model_path', type=str, default='gpt-4-1106-preview',
