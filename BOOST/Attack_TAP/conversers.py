@@ -1,28 +1,10 @@
+
 import common
 from language_models import GPT, PaLM, HuggingFace, APIModelLlama7B, APIModelVicuna13B, GeminiPro
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModel, AutoProcessor, AutoModelForSeq2SeqLM, AutoModelForImageTextToText
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from config import VICUNA_PATH, LLAMA_PATH, ATTACK_TEMP, TARGET_TEMP, ATTACK_TOP_P, TARGET_TOP_P, MAX_PARALLEL_STREAMS 
-import os
-def get_hf_token():
-    """Get HuggingFace token from environment or cached login"""
-    # Try environment variable first
-    token = os.environ.get('HF_TOKEN') or os.environ.get('HUGGINGFACE_TOKEN')
-    if token:
-        return token
 
-    # Try to read from huggingface-cli cache
-    try:
-        from huggingface_hub import HfFolder
-        token = HfFolder.get_token()
-        if token:
-            return token
-    except Exception as e:
-        print(f"Warning: Could not read HF token from cache: {e}")
-
-    return None 
-
-hf_token = get_hf_token()
 def load_target_model(args):
     target_llm = TargetLLM(model_name = args.target_model, 
                         max_n_tokens = args.target_max_n_tokens,
@@ -233,7 +215,7 @@ def load_indiv_model(model_name):
     
     common.MODEL_NAME = model_name
     
-    if model_name in ["gpt-3.5-turbo", "gpt-4", 'gpt-4-1106-preview', 'gpt-4o']:
+    if model_name in ["gpt-3.5-turbo", "gpt-4", 'gpt-4-1106-preview']:
         lm = GPT(model_name)
     elif model_name == "palm-2":
         lm = PaLM(model_name)
@@ -243,53 +225,17 @@ def load_indiv_model(model_name):
         lm = APIModelLlama7B(model_name)
     elif model_name == 'vicuna-api-model':
         lm = APIModelVicuna13B(model_name)
-        # Check if this is an audio/multimodal model (Qwen2-Audio, etc.)
-        
-        
     else:
-        is_audio_model = any(keyword in model_path.lower() for keyword in ['qwen2-audio', 'qwen-audio', 'gemma'])
-        if is_audio_model:
-            # For audio models like Qwen2-Audio, use AutoModelForSeq2SeqLM (as per official example)
-            print(f"Loading audio/multimodal model: {model_path}")
-            try:
-                print("Using AutoModelForSeq2SeqLM for Qwen2-Audio...")
+        model = AutoModelForCausalLM.from_pretrained(
+                model_path, 
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=True,
+                device_map="auto").eval()
 
-                # Load processor first
-                print(hf_token)
-                print(model_path)
-                processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True, token=hf_token)
-
-                # Load model using AutoModelForSeq2SeqLM
-                #model = AutoModelForSeq2SeqLM.from_pretrained(                                #qwen
-                model = AutoModelForImageTextToText.from_pretrained(                           #gemma
-                    model_path,
-                    torch_dtype=torch.float16,
-                    low_cpu_mem_usage=True,
-                    #device_map="auto",
-                    #load_8bit=True,
-                    trust_remote_code=True,
-                    token = hf_token
-                ).eval()
-
-                # Extract tokenizer from processor
-                tokenizer = processor.tokenizer if hasattr(processor, 'tokenizer') else processor
-
-                print("Successfully loaded Qwen2-Audio model!")
-            except Exception as e:
-                print(f"Error loading Qwen2-Audio model: {e}")
-                raise
-        else:
-            model = AutoModelForCausalLM.from_pretrained(
-                    model_path, 
-                    torch_dtype=torch.float16,
-                    low_cpu_mem_usage=True,
-                    ).eval()
-                    #device_map="auto").eval()
-
-            tokenizer = AutoTokenizer.from_pretrained(
-                model_path,
-                use_fast=False
-            ) 
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_path,
+            use_fast=False
+        ) 
 
         if 'llama-2' in model_path.lower():
             tokenizer.pad_token = tokenizer.unk_token
@@ -345,31 +291,7 @@ def get_model_path_and_template(model_name):
         "gemini-pro": {
             "path": "gemini-pro",
             "template": "gemini-pro"
-        },
-        "Qwen/Qwen2-7B-Instruct": {
-            "path": "Qwen/Qwen2-7B-Instruct",
-            "template": "qwen-7b-chat"
-        },
-        "Qwen/Qwen2-Audio-7B-Instruct": {
-            "path": "Qwen/Qwen2-Audio-7B-Instruct",
-            "template": "Qwen2-Audio-7B-Instruct"
-        },
-        "gpt-4o":{
-            "path":"gpt-4o",
-            "template":"gpt-4o"
-        },
-        "google/gemma-3n-E4B-it":{
-            "path":"google/gemma-3n-E4B-it",
-            "template":"google/gemma-3n-E4B-it"
-        }
-         "google/gemma-3n-E2B-it":{
-            "path":"google/gemma-3n-E2B-it",
-            "template":"google/gemma-3n-E2B-it"
         }
     }
     path, template = full_model_dict[model_name]["path"], full_model_dict[model_name]["template"]
     return path, template
-
-
-
-    

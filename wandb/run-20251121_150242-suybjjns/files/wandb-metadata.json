@@ -1,0 +1,94 @@
+{
+  "os": "Linux-4.18.0-553.64.1.el8_10.x86_64-x86_64-with-glibc2.28",
+  "python": "CPython 3.10.19",
+  "startedAt": "2025-11-21T21:02:42.763854Z",
+  "args": [
+    "--target_model",
+    "Qwen/Qwen2-Audio-7B-Instruct",
+    "--evaluation",
+    "strongreject",
+    "--harmful_dataset",
+    "Dataset/harmful.csv",
+    "--targets_dataset",
+    "Dataset/harmful_targets.csv",
+    "--index",
+    "1"
+  ],
+  "program": "/projects/e33046/AttackBench/./Experiments/tap_exp.py",
+  "codePath": "Experiments/tap_exp.py",
+  "codePathLocal": "Experiments/tap_exp.py",
+  "git": {
+    "remote": "https://github.com/NWULIST/SpeechJailbreaker.git",
+    "commit": "d6d5f09519da70d38db4813b951ce6b5984e00a0"
+  },
+  "email": "robinluo2022@u.northwestern.edu",
+  "root": "/projects/e33046/AttackBench",
+  "host": "qgpu3017",
+  "executable": "/projects/p32013/conda_envs/vllm/bin/python",
+  "cpu_count": 64,
+  "cpu_count_logical": 64,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "16777216",
+      "used": "12288"
+    }
+  },
+  "memory": {
+    "total": "1081910083584"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-dc5d9f23-3c7d-eeb6-e3d4-f731882dc557"
+    }
+  ],
+  "cudaVersion": "12.8",
+  "slurm": {
+    "cluster_name": "quest",
+    "conf": "/etc/slurm/slurm.conf",
+    "cpus_on_node": "12",
+    "export_env": "NONE",
+    "get_user_env": "1",
+    "gpus_on_node": "1",
+    "gtids": "0",
+    "job_account": "p32013",
+    "job_cpus_per_node": "12",
+    "job_end_time": "1763845350",
+    "job_gid": "7296",
+    "job_gpus": "2",
+    "job_id": "1392312",
+    "job_name": "Attack",
+    "job_nodelist": "qgpu3017",
+    "job_num_nodes": "1",
+    "job_partition": "gengpu",
+    "job_qos": "normal",
+    "job_start_time": "1763672550",
+    "job_uid": "6504",
+    "job_user": "hlv8980",
+    "jobid": "1392312",
+    "localid": "0",
+    "mem_per_node": "102400",
+    "nnodes": "1",
+    "nodeid": "0",
+    "nodelist": "qgpu3017",
+    "nprocs": "12",
+    "ntasks": "12",
+    "ntasks_per_node": "12",
+    "oom_kill_step": "0",
+    "pmix_direct_conn_ucx": "FALSE",
+    "prio_process": "0",
+    "procid": "0",
+    "submit_dir": "/var/www/ood/apps/sys/dashboard",
+    "submit_host": "qondemand1",
+    "task_pid": "732949",
+    "tasks_per_node": "12",
+    "topology_addr": "qgpu3017",
+    "topology_addr_pattern": "node"
+  },
+  "writerId": "8cldrqhkz39mhead2bwdmcv3qdkq8tt0"
+}
