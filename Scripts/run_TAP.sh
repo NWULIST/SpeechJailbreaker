@@ -4,7 +4,7 @@ module load cuda/cuda-12.1.0-openmpi-4.1.4
 export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 #export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-PYTHON_SCRIPT="/home/vaz5542/projects/AttackBench/Experiments/tap_exp.py"
+PYTHON_SCRIPT="./Experiments/tap_exp.py"
 #MODEL_PATH="google/gemma-7b-it"
 #MODEL_PATH="gpt-4o"
 #MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
