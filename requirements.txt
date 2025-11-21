@@ -79,6 +79,7 @@ jsonschema-specifications==2024.10.1
 kiwisolver==1.4.7
 lark==1.2.2
 llava==0.0.1.dev0
+litellm==1.50.0
 llguidance==0.7.29
 llm==0.25
 llvmlite==0.43.0
