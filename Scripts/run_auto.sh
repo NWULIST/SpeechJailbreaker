@@ -27,8 +27,8 @@ NUM_GPU_SEARCH=7
 NUM_TASKS=3 # Number of tasks to run in parallel
 
 # Dataset paths
-HARMFUL_DATASET="Dataset/harmful.csv"
-TARGETS_DATASET="Dataset/harmful_targets.csv"
+# HARMFUL_DATASET="Dataset/harmful.csv"
+# TARGETS_DATASET="Dataset/harmful_targets.csv"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -72,14 +72,14 @@ while [[ $# -gt 0 ]]; do
       NUM_TASKS="$2"
       shift 2
       ;;
-    --harmful_dataset)
-      HARMFUL_DATASET="$2"
-      shift 2
-      ;;
-    --targets_dataset)
-      TARGETS_DATASET="$2"
-      shift 2
-      ;;
+    # --harmful_dataset)
+    #   HARMFUL_DATASET="$2"
+    #   shift 2
+    #   ;;
+    # --targets_dataset)
+    #   TARGETS_DATASET="$2"
+    #   shift 2
+    #   ;;
     *)
       shift
       ;;
@@ -149,10 +149,10 @@ for index in $(seq 0 $NUM_TASKS); do
     # Run the Python script on the free GPU
     (
         echo "[TASK $index] Task started on GPU $FREE_GPU at $(date '+%Y-%m-%d %H:%M:%S')"
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
 
         echo "[TASK $index] Loading model and starting AutoAttack..."
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" 2>&1 | tee "${LOG_PATH}/${index}.log"
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION 2>&1 | tee "${LOG_PATH}/${index}.log"
 
         echo "[TASK $index] Task finished on GPU $FREE_GPU at $(date '+%Y-%m-%d %H:%M:%S')"
     ) &
