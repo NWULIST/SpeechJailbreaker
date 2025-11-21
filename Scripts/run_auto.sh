@@ -9,7 +9,7 @@ export HF_HOME="/projects/e33046/.cache/"
 # # Get the project root (parent of Scripts directory)
 # PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # export PYTHONPATH="${PYTHONPATH}:${PROJECT_ROOT}"
-PYTHON_SCRIPT="/home/vaz5542/projects/AttackBench/Experiments/autoattack_exp.py"
+PYTHON_SCRIPT="./Experiments/autoattack_exp.py"
 #MODEL_PATH="gpt-4o"
 MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="strongreject"
