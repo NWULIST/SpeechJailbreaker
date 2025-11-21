@@ -1,28 +1,23 @@
-
 #!/bin/bash
 module load cuda/cuda-12.1.0-openmpi-4.1.4
 export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
-#export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-PYTHON_SCRIPT="/home/vaz5542/projects/AttackBench/Experiments/tap_exp.py"
-#MODEL_PATH="google/gemma-7b-it"
-#MODEL_PATH="gpt-4o"
-#MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
-#MODEL_PATH="google/gemma-3n-E4B-it"
-MODEL_PATH="google/gemma-3n-E2B-it"
-#EVALUATION="default"
-EVALUATION="strongreject"
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+PYTHON_SCRIPT="./Experiments/tap_exp.py"
+MODEL_PATH="google/gemma-7b-it"
+EVALUATION="default"
 RUN_INDEX=2
-
+ADD_EOS=False
+EOS_NUM="10"
 
 # GPU
 GPU_MEMORY=40000
 NUM_GPU_SEARCH=7
-NUM_TASKS=1 # Number of tasks to run in parallel
+NUM_TASKS=3 # Number of tasks to run in parallel
 
 # Dataset paths
-# HARMFUL_DATASET="Dataset/harmful.csv"
-# TARGETS_DATASET="Dataset/harmful_targets.csv"
+HARMFUL_DATASET="Dataset/harmful.csv"
+TARGETS_DATASET="Dataset/harmful_targets.csv"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -46,14 +41,14 @@ while [[ $# -gt 0 ]]; do
       NUM_TASKS="$2"
       shift 2
       ;;
-    # --harmful_dataset)
-    #   HARMFUL_DATASET="$2"
-    #   shift 2
-    #   ;;
-    # --targets_dataset)
-    #   TARGETS_DATASET="$2"
-    #   shift 2
-    #   ;;
+    --harmful_dataset)
+      HARMFUL_DATASET="$2"
+      shift 2
+      ;;
+    --targets_dataset)
+      TARGETS_DATASET="$2"
+      shift 2
+      ;;
     *)
       shift
       ;;
@@ -67,23 +62,7 @@ LOG_PATH="Logs/${MODEL_PATH}/TAP-${RUN_INDEX}"
 
 
 # Create the log directory if it does not exist
-LOG_PATH="Logs/${MODEL_PATH}/TAP-${RUN_INDEX}"
-
-echo "=========================================="
-echo "TAP Attack Script Started"
-echo "=========================================="
-echo "Model Path: $MODEL_PATH"
-echo "Evaluation: $EVALUATION"
-echo "Run Index: $RUN_INDEX"
-echo "Number of Tasks: $NUM_TASKS"
-echo "Log Path: $LOG_PATH"
-echo "GPU Memory Required: $GPU_MEMORY MB"
-echo "=========================================="
-echo ""
-
 mkdir -p "$LOG_PATH"
-echo "[INFO] Created log directory: $LOG_PATH"
-
 
 # Conditional flag for EARLY_STOP
 EARLY_STOP_FLAG=""
@@ -120,10 +99,10 @@ for index in $(seq 0 $NUM_TASKS); do
 
     (
         echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH    --evaluation $EVALUATION  --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --evaluation $EVALUATION --index $index 2>&1 | tee "${LOG_PATH}/${index}.log"
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH    --evaluation $EVALUATION --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET  --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --evaluation $EVALUATION --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET"  --index $index > "${LOG_PATH}/${index}.log" 2>&1
         echo "Task $index on GPU $FREE_GPU finished."
-    ) &
+    ) 
 
     # Wait for 30 seconds to give the GPU some time to allocate memory
     sleep 30
