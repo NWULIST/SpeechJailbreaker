@@ -55,6 +55,17 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     # else:
     #     attack_model = LocalLLM(args.attack_model)
 
+    system_message = None
+    if args.defence != '':
+        # Check if args.defence is a file path
+        if isinstance(args.defence, str) and os.path.isfile(args.defence):
+            with open(args.defence, 'r') as f:
+                system_message = json.load(f)['prompt']
+        else:
+            # If it's already a file object or other type, try to load directly
+            system_message = json.load(args.defence)['prompt']
+
+
     if 'gpt' in args.target_model:
         target_model = OpenAILLM(args.target_model, args.openai_key)
     elif 'claude' in args.target_model:
@@ -62,9 +73,9 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model, args.gemini_key)
     elif 'audio' in args.target_model.lower():
-        target_model = LocalSpeechLLM(args.target_model)
+        target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
-        target_model = LocalLLM(args.target-model)
+        target_model = LocalLLM(args.target-model, system_message=system_message)
 
     ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
     origin_question_audio = ds['speech_path'][args.index]

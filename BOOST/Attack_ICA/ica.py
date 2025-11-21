@@ -3,11 +3,11 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import csv
 import pandas as pd
-from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM, ClaudeLLM, GeminiLLM
 import random
 from BOOST.utils.templates import get_eos
 from datasets import load_dataset
-
+import json
 from BOOST.Attack_ICA.few_shot_examples import *
 random.seed(100)
 import logging
@@ -29,6 +29,19 @@ def evaluate_generation_strongreject(question, generation):
 
 def ICA_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     
+    system_message = None
+    if args.defence != '':
+        # Check if args.defence is a file path
+        if isinstance(args.defence, str) and os.path.isfile(args.defence):
+            with open(args.defence, 'r') as f:
+                system_message = json.load(f)['prompt']
+        else:
+            # If it's already a file object or other type, try to load directly
+            system_message = json.load(args.defence)['prompt']
+
+
+
+
     if 'gpt' in args.target_model:
         target_model = OpenAILLM(args.target_model, args.openai_key)
     elif 'claude' in args.target_model:
@@ -36,9 +49,9 @@ def ICA_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model, args.gemini_key)
     elif 'audio' in args.target_model.lower():
-        target_model = LocalSpeechLLM(args.target_model)
+        target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
-       target_model = LocalLLM(args.target_model)
+       target_model = LocalLLM(args.target_model, system_message=system_message)
 
     for index in range(args.num_tasks):
         args.index = index

@@ -14,7 +14,7 @@ PYTHON_SCRIPT="./Experiments/autoattack_exp.py"
 MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="strongreject"
 RUN_INDEX=0
-
+defence = ""
 # AutoAttack specific parameters
 NORM="Linf"
 EPS="0.3"
@@ -42,6 +42,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --run_index)
       RUN_INDEX="$2"
+      shift 2
+      ;;
+    --defence)
+      defence="$2"
       shift 2
       ;;
     --norm)
@@ -149,10 +153,10 @@ for index in $(seq 0 $NUM_TASKS); do
     # Run the Python script on the free GPU
     (
         echo "[TASK $index] Task started on GPU $FREE_GPU at $(date '+%Y-%m-%d %H:%M:%S')"
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --defence $defence --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
 
         echo "[TASK $index] Loading model and starting AutoAttack..."
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION 2>&1 | tee "${LOG_PATH}/${index}.log"
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index --defence $defence --target_model $MODEL_PATH --norm $NORM --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION 2>&1 | tee "${LOG_PATH}/${index}.log"
 
         echo "[TASK $index] Task finished on GPU $FREE_GPU at $(date '+%Y-%m-%d %H:%M:%S')"
     ) 

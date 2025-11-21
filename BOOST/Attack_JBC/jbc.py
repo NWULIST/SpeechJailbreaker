@@ -27,7 +27,19 @@ def evaluate_generation_strongreject(question, generation):
 def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     JBC_prompts = pd.read_csv('Dataset/JBCdataset.csv', encoding="utf-8", quotechar='"', escapechar='\\', dtype=str)['text'].tolist()
     
-    target_model = LocalSpeechLLM(args.target_model)
+    system_message = None
+    if args.defence != '':
+        # Check if args.defence is a file path
+        if isinstance(args.defence, str) and os.path.isfile(args.defence):
+            with open(args.defence, 'r') as f:
+                system_message = json.load(f)['prompt']
+        else:
+            # If it's already a file object or other type, try to load directly
+            system_message = json.load(args.defence)['prompt']
+
+
+
+    target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
 
 
     ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']

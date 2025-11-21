@@ -9,7 +9,7 @@ EVALUATION="default"
 RUN_INDEX=2
 ADD_EOS=False
 EOS_NUM="10"
-
+defence = ""
 # GPU
 GPU_MEMORY=40000
 NUM_GPU_SEARCH=7
@@ -35,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --num_gpu_search)
       NUM_GPU_SEARCH="$2"
+      shift 2
+      ;;
+    --defence)
+      defence="$2"
       shift 2
       ;;
     --num_tasks)
@@ -99,8 +103,8 @@ for index in $(seq 0 $NUM_TASKS); do
 
     (
         echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH    --evaluation $EVALUATION --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET  --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --evaluation $EVALUATION --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET"  --index $index > "${LOG_PATH}/${index}.log" 2>&1
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH --defence $defence    --evaluation $EVALUATION --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET  --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --defence $defence --evaluation $EVALUATION --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET"  --index $index > "${LOG_PATH}/${index}.log" 2>&1
         echo "Task $index on GPU $FREE_GPU finished."
     ) 
 

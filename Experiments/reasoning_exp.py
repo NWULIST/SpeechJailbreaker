@@ -31,6 +31,7 @@ def set_random_seed(seed=42):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ICA Attack')
+    parser.add_argument('--defence', type=str, default='', help='defence file location')
     parser.add_argument('--model_path', type=str, default='gpt-3.5-turbo-0125',
                         help='mutate model path')
     parser.add_argument('--target_model', type=str, default='meta-llama/Meta-Llama-3-8B-Instruct',

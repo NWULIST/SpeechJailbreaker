@@ -18,7 +18,7 @@ NUM_TASKS=3 # Number of tasks to run in parallel
 # Dataset paths
 HARMFUL_DATASET="Dataset/harmful.csv"
 TARGETS_DATASET="Dataset/harmful_targets.csv"
-defence = ""
+defence="/projects/e33046/AttackBench/Defense_prompt/ICD.json"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
