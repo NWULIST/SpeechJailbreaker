@@ -20,8 +20,8 @@ NUM_GPU_SEARCH=7
 NUM_TASKS=1 # Number of tasks to run in parallel
 
 # Dataset paths
-HARMFUL_DATASET="Dataset/harmful.csv"
-TARGETS_DATASET="Dataset/harmful_targets.csv"
+#HARMFUL_DATASET="Dataset/harmful.csv"
+#TARGETS_DATASET="Dataset/harmful_targets.csv"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -49,10 +49,10 @@ while [[ $# -gt 0 ]]; do
       HARMFUL_DATASET="$2"
       shift 2
       ;;
-    --targets_dataset)
-      TARGETS_DATASET="$2"
-      shift 2
-      ;;
+ #   --targets_dataset)
+ #     TARGETS_DATASET="$2"
+ #     shift 2
+ #     ;;
     *)
       shift
       ;;
@@ -119,8 +119,8 @@ for index in $(seq 0 $NUM_TASKS); do
 
     (
         echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH    --evaluation $EVALUATION --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET  --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --evaluation $EVALUATION --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET"  --index $index 2>&1 | tee "${LOG_PATH}/${index}.log"
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH    --evaluation $EVALUATION --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --evaluation $EVALUATION --index $index 2>&1 | tee "${LOG_PATH}/${index}.log"
         echo "Task $index on GPU $FREE_GPU finished."
     ) &
 
