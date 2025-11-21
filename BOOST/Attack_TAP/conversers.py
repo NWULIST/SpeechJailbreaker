@@ -43,12 +43,15 @@ def load_attack_and_target_models(args):
     if args.attack_model == args.target_model:
         print("Using same attack and target model. Using previously loaded model.")
         preloaded_model = attack_llm.model
-    target_llm = TargetLLM(model_name = args.target_model, 
-                        max_n_tokens = args.target_max_n_tokens,
-                        temperature = TARGET_TEMP, # init to 0
-                        top_p = TARGET_TOP_P, # init to 1
-                        preloaded_model = preloaded_model,
-                        )
+    try:
+        target_llm = TargetLLM(model_name = args.target_model, 
+                            max_n_tokens = args.target_max_n_tokens,
+                            temperature = TARGET_TEMP, # init to 0
+                            top_p = TARGET_TOP_P, # init to 1
+                            preloaded_model = preloaded_model,
+                            )
+    except:
+        target_llm = None
     return attack_llm, target_llm
 
 class AttackLLM():
