@@ -50,10 +50,10 @@ if __name__ == "__main__":
     
     # Dataset parameters
     parser.add_argument('--index', type=int, default=0, help='The index of the question')
-    parser.add_argument('--harmful_dataset', type=str, default='/home/vaz5542/projects/AttackBench/Dataset/harmful.csv',
-                        help='Path to the harmful questions dataset')
-    parser.add_argument('--targets_dataset', type=str, default='/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv',
-                        help='Path to the harmful targets dataset')
+    # parser.add_argument('--harmful_dataset', type=str, default='/home/vaz5542/projects/AttackBench/Dataset/harmful.csv',
+    #                     help='Path to the harmful questions dataset')
+    # parser.add_argument('--targets_dataset', type=str, default='/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv',
+    #                     help='Path to the harmful targets dataset')
     
     # Model parameters
     parser.add_argument('--target_model', type=str, default='gpt-3.5-turbo',
@@ -120,21 +120,20 @@ if __name__ == "__main__":
     #args.gemini_key = gemini_key
     args.gemini_key = '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'
     # Read goal and target_str from CSV if not provided
-    if args.goal is None:
-        print("123214")
-        print(args.harmful_dataset)
-        args.harmful_dataset = "/home/vaz5542/projects/AttackBench/Dataset/harmful.csv"
-        print(args.harmful_dataset)
-        data_path = "/home/vaz5542/projects/AttackBench/Dataset/harmful.csv"
-        #args.goal = read_csv_row(args.harmful_dataset, args.index, column_name='text')
-        args.goal = read_csv_row(data_path, args.index, column_name='text')
-        print(f"Loaded goal from {args.harmful_dataset}: {args.goal}")
+    # if args.goal is None:
+
+    #     #args.harmful_dataset = "/home/vaz5542/projects/AttackBench/Dataset/harmful.csv"
+
+    #     #data_path = "/home/vaz5542/projects/AttackBench/Dataset/harmful.csv"
+    #     #args.goal = read_csv_row(args.harmful_dataset, args.index, column_name='text')
+    #     args.goal = read_csv_row(data_path, args.index, column_name='text')
+    #     print(f"Loaded goal from {args.harmful_dataset}: {args.goal}")
     
-    if args.target_str is None:
-        args.harmful_targets = "/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv"
-        targets_path = "/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv"
-        args.target_str = read_csv_row(targets_path, args.index, column_name='target')
-        print(f"Loaded target_str from {args.targets_dataset}: {args.target_str}")
+    # if args.target_str is None:
+    #     args.harmful_targets = "/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv"
+    #     targets_path = "/home/vaz5542/projects/AttackBench/Dataset/harmful_targets.csv"
+    #     args.target_str = read_csv_row(targets_path, args.index, column_name='target')
+    #     print(f"Loaded target_str from {args.targets_dataset}: {args.target_str}")
     
     # Set default store folder if not provided
     if args.store_folder is None:
