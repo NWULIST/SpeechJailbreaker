@@ -4,7 +4,7 @@ export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 PYTHON_SCRIPT="./Experiments/pair_exp.py"
-MODEL_PATH="google/gemma-7b-it"
+MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="default"
 RUN_INDEX=2
 ADD_EOS=False
@@ -13,7 +13,7 @@ EOS_NUM="10"
 # GPU
 GPU_MEMORY=40000
 NUM_GPU_SEARCH=7
-NUM_TASKS=3 # Number of tasks to run in parallel
+NUM_TASKS=1 # Number of tasks to run in parallel
 
 # Dataset paths
 HARMFUL_DATASET="Dataset/harmful.csv"
@@ -41,28 +41,13 @@ while [[ $# -gt 0 ]]; do
       NUM_TASKS="$2"
       shift 2
       ;;
-    --harmful_dataset)
-      HARMFUL_DATASET="$2"
-      shift 2
-      ;;
-    --targets_dataset)
-      TARGETS_DATASET="$2"
-      shift 2
-      ;;
     *)
       shift
       ;;
   esac
 done
 
-
-if [ "$ADD_EOS" = "True" ]; then
-    LOG_PATH="Logs/${MODEL_PATH}/PAIR_eos-${RUN_INDEX}"
-else
-    LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
-fi
-
-
+LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
 # Create the log directory if it does not exist
 mkdir -p "$LOG_PATH"
 
@@ -101,10 +86,10 @@ for index in $(seq 0 $NUM_TASKS); do
 
     (
         echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH    --evaluation $EVALUATION$ --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET  --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --evaluation $EVALUATION$ --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET"  --index $index > "${LOG_PATH}/${index}.log" 2>&1
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH --evaluation $EVALUATION  --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --target_model $MODEL_PATH --evaluation $EVALUATION  --index $index > "${LOG_PATH}/${index}.log" 2>&1
         echo "Task $index on GPU $FREE_GPU finished."
-    ) &
+    ) 
 
     # Wait for 30 seconds to give the GPU some time to allocate memory
     sleep 30

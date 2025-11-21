@@ -13,7 +13,7 @@ EOS_NUM="10"
 # GPU
 GPU_MEMORY=40000
 NUM_GPU_SEARCH=7
-NUM_TASKS=3 # Number of tasks to run in parallel
+NUM_TASKS=1 # Number of tasks to run in parallel
 
 # Dataset paths
 HARMFUL_DATASET="Dataset/harmful.csv"
@@ -55,12 +55,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+LOG_PATH="Logs/${MODEL_PATH}/JBC-${RUN_INDEX}"
 
-if [ "$ADD_EOS" = "True" ]; then
-    LOG_PATH="Logs/${MODEL_PATH}/JBC_eos-${RUN_INDEX}"
-else
-    LOG_PATH="Logs/${MODEL_PATH}/JBC-${RUN_INDEX}"
-fi
 
 
 # Create the log directory if it does not exist
