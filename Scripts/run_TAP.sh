@@ -20,8 +20,8 @@ NUM_GPU_SEARCH=7
 NUM_TASKS=1 # Number of tasks to run in parallel
 
 # Dataset paths
-HARMFUL_DATASET="Dataset/harmful.csv"
-TARGETS_DATASET="Dataset/harmful_targets.csv"
+# HARMFUL_DATASET="Dataset/harmful.csv"
+# TARGETS_DATASET="Dataset/harmful_targets.csv"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -45,14 +45,14 @@ while [[ $# -gt 0 ]]; do
       NUM_TASKS="$2"
       shift 2
       ;;
-    --harmful_dataset)
-      HARMFUL_DATASET="$2"
-      shift 2
-      ;;
-    --targets_dataset)
-      TARGETS_DATASET="$2"
-      shift 2
-      ;;
+    # --harmful_dataset)
+    #   HARMFUL_DATASET="$2"
+    #   shift 2
+    #   ;;
+    # --targets_dataset)
+    #   TARGETS_DATASET="$2"
+    #   shift 2
+    #   ;;
     *)
       shift
       ;;
@@ -62,71 +62,3 @@ done
 
 
 LOG_PATH="Logs/${MODEL_PATH}/TAP-${RUN_INDEX}"
-
-
-
-# Create the log directory if it does not exist
-LOG_PATH="Logs/${MODEL_PATH}/TAP-${RUN_INDEX}"
-
-echo "=========================================="
-echo "TAP Attack Script Started"
-echo "=========================================="
-echo "Model Path: $MODEL_PATH"
-echo "Evaluation: $EVALUATION"
-echo "Run Index: $RUN_INDEX"
-echo "Number of Tasks: $NUM_TASKS"
-echo "Log Path: $LOG_PATH"
-echo "GPU Memory Required: $GPU_MEMORY MB"
-echo "=========================================="
-echo ""
-
-mkdir -p "$LOG_PATH"
-echo "[INFO] Created log directory: $LOG_PATH"
-
-
-# Conditional flag for EARLY_STOP
-EARLY_STOP_FLAG=""
-if [ "$EARLY_STOP" = "True" ]; then
-    EARLY_STOP_FLAG="--early_stop"
-fi
-
-# Function to find the first available GPU
-find_free_gpu() {
-    # {0..$NUM_GPU_SEARCH}
-    for i in $(seq 0 $NUM_GPU_SEARCH); do
-        free_mem=$(nvidia-smi -i $i --query-gpu=memory.free --format=csv,noheader,nounits | awk '{print $1}')
-        if [[ "$free_mem" =~ ^[0-9]+$ ]] && [ "$free_mem" -ge $GPU_MEMORY ]; then
-            echo $i
-            return
-        fi
-    done
-
-    echo "-1" # Return -1 if no suitable GPU is found
-}
-
-# Start the jobs with GPU assignment
-for index in $(seq 0 $NUM_TASKS); do
-
-    FREE_GPU=-1
-
-    # Keep looping until a free GPU is found
-    while [ $FREE_GPU -eq -1 ]; do
-        FREE_GPU=$(find_free_gpu)
-        if [ $FREE_GPU -eq -1 ]; then
-            sleep 5 # Wait for 5 seconds before trying to find a free GPU again
-        fi
-    done
-
-    (
-        echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH    --evaluation $EVALUATION  --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH  --evaluation $EVALUATION --index $index 2>&1 | tee "${LOG_PATH}/${index}.log"
-        echo "Task $index on GPU $FREE_GPU finished."
-    ) &
-
-    # Wait for 30 seconds to give the GPU some time to allocate memory
-    sleep 30
-done
-
-# Wait for all background jobs to finish
-wait
