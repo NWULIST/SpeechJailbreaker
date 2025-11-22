@@ -27,21 +27,6 @@ def evaluate_generation_strongreject(question, generation):
 def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     JBC_prompts = pd.read_csv('Dataset/JBCdataset.csv', encoding="utf-8", quotechar='"', escapechar='\\', dtype=str)['text'].tolist()
     
-    system_message = None
-    if args.defence != '':
-        # Check if args.defence is a file path
-        if isinstance(args.defence, str) and os.path.isfile(args.defence):
-            with open(args.defence, 'r') as f:
-                system_message = json.load(f)['prompt']
-        else:
-            # If it's already a file object or other type, try to load directly
-            system_message = json.load(args.defence)['prompt']
-
-
-
-    target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
-
-
     ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
             
     origin_question_audio = ds['speech_path'][args.index]
@@ -54,6 +39,30 @@ def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
 
     args.question = origin_question_audio
     print("The question is: ", origin_question)
+
+    system_message = None
+    if args.defence != '':
+        defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
+        print(defence_path)
+
+        if os.path.isfile(defence_path):
+            with open(defence_path, "r") as f:
+                system_message = json.load(f)["prompt"]
+        else:
+            raise FileNotFoundError(f"Defense file not found: {defence_path}")
+
+
+    if args.defence == 'self-reminder':
+        system_message = system_message.replace("{QUESTION}", origin_question)
+        print(system_message)
+        
+
+
+
+    target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+
+
+    
 
     evaluation = getattr(args, 'evaluation', 'default')
     print("The evaluation is: ", evaluation, file=sys.stderr)

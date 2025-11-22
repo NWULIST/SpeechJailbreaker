@@ -19,14 +19,12 @@ ATTACK_TO_SCRIPT = {
     'autoattack': 'run_auto.sh',
 }
 
-Defence_TO_SCRIPT = {
-    'icd': '/projects/e33046/AttackBench/Defense_prompt/ICD.json',
-}
+
 
 def main():
     parser = argparse.ArgumentParser(description='Unified Python interface for running attack scripts.')
     parser.add_argument('--attack', required=True, default='tap', choices=ATTACK_TO_SCRIPT.keys(), help='Attack method to run')
-    parser.add_argument('--defence', required=False, default=None, choices=Defence_TO_SCRIPT.keys(), help='Defence method to run')
+    parser.add_argument('--defence', required=False, default=None, help='Defence method to run')
     parser.add_argument('--model_path', required=False, default='Qwen/Qwen2-Audio-7B-Instruct', help='Model path to pass to the attack script')
     parser.add_argument('--evaluation', required=False, default='strongreject', help='Evaluation method to pass to the attack script (default or strongreject)')
     parser.add_argument('--num_tasks', type=int, default=2, help='Number of tasks to run in parallel (default: 3)')
@@ -42,7 +40,7 @@ def main():
 
     print(f"[INFO] Running {script_name} under Defence {args.defence} with MODEL_PATH={args.model_path} and EVALUATION={args.evaluation}")
     try:
-        result = subprocess.run([script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks)], check=True)
+        result = subprocess.run([script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--defence", str(args.defence)], check=True)
         sys.exit(result.returncode)
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] {script_name} failed with exit code {e.returncode}")

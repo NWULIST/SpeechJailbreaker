@@ -40,15 +40,27 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     openai_model = OpenAILLM(args.model_path, args.openai_key)
     # target_model = LocalLLM(args.target_model) 
 
+    # Login using e.g. `huggingface-cli login` to access this dataset
+    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
+    origin_question_audio = ds['speech_path'][args.index]
+    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
+    origin_question = ds['prompt'][args.index]
+
     system_message = None
     if args.defence != '':
-        # Check if args.defence is a file path
-        if isinstance(args.defence, str) and os.path.isfile(args.defence):
-            with open(args.defence, 'r') as f:
-                system_message = json.load(f)['prompt']
+        defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
+        print(defence_path)
+
+        if os.path.isfile(defence_path):
+            with open(defence_path, "r") as f:
+                system_message = json.load(f)["prompt"]
         else:
-            # If it's already a file object or other type, try to load directly
-            system_message = json.load(args.defence)['prompt']
+            raise FileNotFoundError(f"Defense file not found: {defence_path}")
+
+
+    if args.defence == 'self-reminder':
+        system_message = system_message.replace("{QUESTION}", origin_question)
+        print(system_message)
 
     if 'gpt' in args.target_model:
         target_model = OpenAILLM(args.target_model, args.openai_key)
@@ -62,11 +74,7 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
        target_model = LocalLLM(args.target_model, system_message=system_message)
     
     
-    # Login using e.g. `huggingface-cli login` to access this dataset
-    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-    origin_question_audio = ds['speech_path'][args.index]
-    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
-    origin_question = ds['prompt'][args.index]
+    
 
 
     evaluation = getattr(args, 'evaluation', 'default')
