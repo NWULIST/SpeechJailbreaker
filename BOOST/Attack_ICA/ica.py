@@ -31,13 +31,14 @@ def ICA_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     
     system_message = None
     if args.defence != '':
-        # Check if args.defence is a file path
-        if isinstance(args.defence, str) and os.path.isfile(args.defence):
-            with open(args.defence, 'r') as f:
-                system_message = json.load(f)['prompt']
+        defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
+        print(defence_path)
+
+        if os.path.isfile(defence_path):
+            with open(defence_path, "r") as f:
+                system_message = json.load(f)["prompt"]
         else:
-            # If it's already a file object or other type, try to load directly
-            system_message = json.load(args.defence)['prompt']
+            raise FileNotFoundError(f"Defense file not found: {defence_path}")
 
 
 
@@ -98,6 +99,21 @@ def ICA_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
 
             args.question = origin_question_audio
             print("The question is: ", origin_question)
+
+            if args.defence == 'self-reminder':
+                system_message = system_message.replace("{QUESTION}", origin_question)
+                print(system_message)
+                if 'gpt' in args.target_model:
+                    target_model = OpenAILLM(args.target_model, args.openai_key)
+                elif 'claude' in args.target_model:
+                    target_model = ClaudeLLM(args.target_model, args.claude_key)
+                elif 'gemini' in args.target_model:
+                    target_model = GeminiLLM(args.target_model, args.gemini_key)
+                elif 'audio' in args.target_model.lower():
+                    target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+                else:
+                    target_model = LocalLLM(args.target_model, system_message=system_message)
+
 
             if args.few_shot_num == 1:
                 ICL = one_shot

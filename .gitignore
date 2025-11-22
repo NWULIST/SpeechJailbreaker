@@ -6,3 +6,4 @@ Logs/*
 .cursor/*
 Scripts/.cursor/*
 Scripts/Logs/*
+wandb/

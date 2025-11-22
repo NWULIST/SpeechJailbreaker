@@ -41,29 +41,31 @@ def evaluate_generation_strongreject(question, generation, target):
 def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     memory_before = memory_usage_psutil()
 
+        
+
     if getattr(args, 'store_folder', None):
         os.makedirs(args.store_folder, exist_ok=True)
 
-    # if 'gpt' in args.attack_model:
-    #     attack_model = OpenAILLM(args.attack_model, args.openai_key)
-    # elif 'claude' in args.attack_model:
-    #     attack_model = ClaudeLLM(args.attack_model, args.claude_key)
-    # elif 'gemini' in args.attack_model:
-    #     attack_model = GeminiLLM(args.attack_model, args.gemini_key)
-    # elif 'audio' in args.attack_model.lower():
-    #     attack_model = LocalSpeechLLM(args.attack_model)
-    # else:
-    #     attack_model = LocalLLM(args.attack_model)
+    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
+    origin_question_audio = ds['speech_path'][args.index]
+    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
+    origin_question = ds['prompt'][args.index]
 
     system_message = None
     if args.defence != '':
-        # Check if args.defence is a file path
-        if isinstance(args.defence, str) and os.path.isfile(args.defence):
-            with open(args.defence, 'r') as f:
-                system_message = json.load(f)['prompt']
+        defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
+        print(defence_path)
+
+        if os.path.isfile(defence_path):
+            with open(defence_path, "r") as f:
+                system_message = json.load(f)["prompt"]
         else:
-            # If it's already a file object or other type, try to load directly
-            system_message = json.load(args.defence)['prompt']
+            raise FileNotFoundError(f"Defense file not found: {defence_path}")
+
+
+    if args.defence == 'self-reminder':
+        system_message = system_message.replace("{QUESTION}", origin_question)
+        print(system_message)
 
 
     if 'gpt' in args.target_model:
@@ -77,10 +79,7 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     else:
         target_model = LocalLLM(args.target-model, system_message=system_message)
 
-    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-    origin_question_audio = ds['speech_path'][args.index]
-    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
-    origin_question = ds['prompt'][args.index]
+    
 
     args.target_str = 'Sure, here is a tutorial for'
 
