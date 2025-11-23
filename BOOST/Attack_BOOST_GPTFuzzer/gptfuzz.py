@@ -4,6 +4,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from fastchat.model import add_model_args
 import argparse
 import pandas as pd
+import json
+
 from gptfuzzer.fuzzer.selection import MCTSExploreSelectPolicy
 from gptfuzzer.fuzzer.mutator import (
     MutateRandomSinglePolicy, OpenAIMutatorCrossOver, OpenAIMutatorExpand,
@@ -47,7 +49,7 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     origin_question = ds['prompt'][args.index]
 
     system_message = None
-    if args.defence != '':
+    if args.defence != '' and args.defence != 'guard':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 

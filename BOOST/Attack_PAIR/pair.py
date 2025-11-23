@@ -13,6 +13,7 @@ httpx_logger.setLevel(logging.WARNING)
 from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from datasets import load_dataset
+import json
 
 import argparse
 from judges import load_judge
@@ -52,7 +53,7 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     origin_question = ds['prompt'][args.index]
 
     system_message = None
-    if args.defence != '':
+    if args.defence != '' and args.defence != 'guard':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
