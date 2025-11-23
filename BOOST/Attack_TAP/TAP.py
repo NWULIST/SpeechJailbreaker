@@ -10,6 +10,7 @@ import logging
 from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from datasets import load_dataset
+import json
 
 httpx_logger: logging.Logger = logging.getLogger("httpx")
 # disable httpx logging
@@ -136,7 +137,7 @@ def tap_attack(args, base_dir="/projects/e33046/AudioJailbreak"):
     origin_question = ds['prompt'][args.index]
 
     system_message = None
-    if args.defence != '':
+    if args.defence != '' and args.defence != 'guard':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
