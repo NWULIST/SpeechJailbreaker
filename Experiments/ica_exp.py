@@ -33,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_path', type=str, default='gpt-3.5-turbo-0125',
                         help='mutate model path')
     parser.add_argument('--defence', type=str, default=None, help='defence file location')
-
+    parser.add_argument('--guard', type=str, default=None, help='guard model')
     parser.add_argument('--target_model', type=str, default='google/gemma-7b-it',
                         help='The target model, openai model or open-sourced LLMs')
     parser.add_argument('--few_shot_num', type=int, default=1, help='The number of few shot examples')

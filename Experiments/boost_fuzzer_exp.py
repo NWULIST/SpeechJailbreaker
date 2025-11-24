@@ -35,6 +35,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_path', type=str, default='gpt-4-1106-preview',
                         help='mutate model path')
     parser.add_argument('--defence', type=str, default='', help='defence file location')
+    parser.add_argument('--guard', type=str, default=None, help='guard model')
     parser.add_argument('--target_model', type=str, default='google/gemma-7b-it',
                         help='The target model, openai model or open-sourced LLMs')
     parser.add_argument('--max_query', type=int, default=100,

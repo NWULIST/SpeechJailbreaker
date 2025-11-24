@@ -14,6 +14,8 @@ from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from datasets import load_dataset
 import json
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import re
 
 class EvalResult(NamedTuple):
     success: bool
@@ -109,24 +111,73 @@ def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
             response = target_model.generate(args.question, prompt, max_tokens=args.max_new_tokens)
             
             print(response)
-            if evaluation == 'strongreject':
-                result = evaluate_generation_strongreject(origin_question, response)
+            if args.defence == 'guard':
+                tokenizer = AutoTokenizer.from_pretrained(args.guard)
+                model = AutoModelForCausalLM.from_pretrained(
+                    args.guard,
+                    torch_dtype="auto",
+                    device_map="auto"
+                )
 
-                total_score += result.score
-                total_count += 1
+                messages = [
+                    {"role": "user", "content": origin_question},
+                    {"role": "assistant", "content": response},
+                ]
 
-                if result.success == True:
-                    print("Success!")
-                writer.writerow([jbc_id, response, result.score])
-                if args.early_stop and result.success == True:
-                    break
-            else:
-                result = predictor.predict([response], origin_question)[0]
-                if result == 1:
-                    print("Success!")
-                writer.writerow([jbc_id, response, result])
-                if args.early_stop and result == 1:
-                    break
+                text = tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False
+                )
+                model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+
+                # conduct text completion
+                generated_ids = model.generate(
+                    **model_inputs,
+                    max_new_tokens=128
+                )
+
+                output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
+
+                content = tokenizer.decode(output_ids, skip_special_tokens=True)
+                
+                print(content)
+                if 'safe' in content.lower():
+                    if evaluation == 'strongreject':
+                        result = evaluate_generation_strongreject(origin_question, response)
+
+                        total_score += result.score
+                        total_count += 1
+
+                        if result.success == True:
+                            print("Success!")
+                        writer.writerow([jbc_id, response, result.score])
+                        if args.early_stop and result.success == True:
+                            break
+                    else:
+                        result = predictor.predict([response], origin_question)[0]
+                        if result == 1:
+                            print("Success!")
+                        writer.writerow([jbc_id, response, result])
+                        if args.early_stop and result == 1:
+                            break
+                else:
+                    if evaluation == 'strongreject':
+                        result = evaluate_generation_strongreject(origin_question, response)
+
+                        total_score += result.score
+                        total_count += 1
+
+                        if result.success == True:
+                            print("Success!")
+                        writer.writerow([jbc_id, response, 0])
+                        
+                    else:
+                        result = predictor.predict([response], origin_question)[0]
+                        if result == 1:
+                            print("Success!")
+                        writer.writerow([jbc_id, response, 0])
+                        
+            
                     
         ASR = total_score / total_count
         print ("ASR: ", ASR)

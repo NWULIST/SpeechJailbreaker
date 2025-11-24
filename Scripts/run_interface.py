@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--model_path', required=False, default='Qwen/Qwen2-Audio-7B-Instruct', help='Model path to pass to the attack script')
     parser.add_argument('--evaluation', required=False, default='strongreject', help='Evaluation method to pass to the attack script (default or strongreject)')
     parser.add_argument('--num_tasks', type=int, default=2, help='Number of tasks to run in parallel (default: 3)')
+    parser.add_argument('--guard', required=False, default=None, help='Guard model to run')
     args = parser.parse_args()
 
     script_name = ATTACK_TO_SCRIPT[args.attack]
@@ -40,7 +41,7 @@ def main():
 
     print(f"[INFO] Running {script_name} under Defence {args.defence} with MODEL_PATH={args.model_path} and EVALUATION={args.evaluation}")
     try:
-        result = subprocess.run([script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--defence", str(args.defence)], check=True)
+        result = subprocess.run([script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--defence", str(args.defence), '--guard', str(args.guard)], check=True)
         sys.exit(result.returncode)
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] {script_name} failed with exit code {e.returncode}")
