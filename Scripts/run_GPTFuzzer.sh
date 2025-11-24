@@ -132,7 +132,7 @@ for index in $(seq 0 $NUM_TASKS); do
         echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --defence $defence --target_model $MODEL_PATH $ADD_EOS_FLAG --guard $guard --run_index $RUN_INDEX --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
         CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index --defence $defence --target_model $MODEL_PATH $ADD_EOS_FLAG --guard $guard --run_index $RUN_INDEX --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" > "${LOG_PATH}/${index}.log" 2>&1
         echo "Task $index on GPU $FREE_GPU finished."
-    ) &
+    ) 
 
 
     # Wait for 30 seconds to give the GPU some time to allocate memory
