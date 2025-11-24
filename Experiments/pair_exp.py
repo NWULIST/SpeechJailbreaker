@@ -92,10 +92,11 @@ if __name__ == "__main__":
         help = "Number of responses to save in conversation history of attack model. If this is too large, then it may exceed the context window of the model."
     )
     parser.add_argument('--defence', type=str, default='', help='defence file location')
+    parser.add_argument('--guard', type=str, default=None, help='guard model')
     parser.add_argument(
         "--n_iterations",
         type = int,
-        default = 3,
+        default = 10,
         help = "Number of iterations to run the attack. For our experiments, we use 3."
     )
     parser.add_argument( 

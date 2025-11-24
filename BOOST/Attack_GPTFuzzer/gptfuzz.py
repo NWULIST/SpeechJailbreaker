@@ -129,6 +129,8 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
         generate_in_batch=True,
         result_file=save_path,
         evaluation=evaluation,
+        defence=args.defence,
+        guard=args.guard,
     )
 
     fuzzer.run()

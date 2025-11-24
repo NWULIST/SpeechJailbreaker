@@ -37,6 +37,7 @@ if __name__ == "__main__":
 
     # Basic parameters
     parser.add_argument('--defence', type=str, default='', help='defence file location')
+    parser.add_argument('--guard', type=str, default=None, help='guard model')
     parser.add_argument('--index', type=int, default=0,
                         help='The index of the question')
     parser.add_argument('--model_path', type=str, default='gpt-4-1106-preview',

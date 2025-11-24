@@ -13,6 +13,8 @@ from gptfuzzer.utils.template import synthesis_message
 from gptfuzzer.utils.predict import Predictor
 import warnings
 from gptfuzzer.llm import OpenAILLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import re
 
 class PromptNode:
     def __init__(self,
@@ -90,8 +92,11 @@ class GPTFuzzer:
                  result_file: str = None,
                  generate_in_batch: bool = False,
                  evaluation: str = 'default',
+                 defence: str = '',
+                 guard: str = '',
                  ):
-
+        self.defence = defence
+        self.guard = guard
         self.evaluation = evaluation
         self.questions: 'list[str]' = questions
         self.questions_txt = questions_txt
@@ -182,7 +187,13 @@ class GPTFuzzer:
                 messages.append(message)
                 
                 valid_prompt_indices.append(i)
-    
+        if self.defence == 'guard':
+            tokenizer = AutoTokenizer.from_pretrained(self.guard)
+            model = AutoModelForCausalLM.from_pretrained(
+                self.guard,
+                torch_dtype="auto",
+                device_map="auto"
+            )
         # Generate responses in batch
         if messages:
             print(messages)
@@ -191,13 +202,39 @@ class GPTFuzzer:
             # Assign responses and results to valid prompt nodes
             for i, response in zip(valid_prompt_indices, responses):
                 prompt_nodes[i].response = [response]
-                
-                if self.evaluation != 'strongreject':
-                    prompt_nodes[i].results = self.predictor.predict([response], self.questions_txt[0])
+                messages = [
+                    {"role": "user", "content": self.questions_txt[0]},
+                    {"role": "assistant", "content": response},
+                ]
+
+                text = tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False
+                )
+                model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+
+                # conduct text completion
+                generated_ids = model.generate(
+                    **model_inputs,
+                    max_new_tokens=128
+                )
+
+                output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
+
+                content = tokenizer.decode(output_ids, skip_special_tokens=True)
+                if 'safe' in content.lower():
+                    if self.evaluation != 'strongreject':
+                        prompt_nodes[i].results = self.predictor.predict([response], self.questions_txt[0])
+                    else:
+                        prompt_nodes[i].results = self.predictor([response], self.questions_txt[0], None)
+                        print(f"Prompt: {prompt_nodes[i].prompt}, Response: {response}, Results: {prompt_nodes[i].results}")
                 else:
-                    prompt_nodes[i].results = self.predictor([response], self.questions_txt[0], None)
-                    print(f"Prompt: {prompt_nodes[i].prompt}, Response: {response}, Results: {prompt_nodes[i].results}")
-                
+                    if isinstance(prompt_nodes[i].results, list) and len(prompt_nodes[i].results) >= 1:
+                        for item in prompt_nodes[i].results:
+                            item.sucess = False
+                    else:
+                        self.results.success = False
+
             # Assign empty responses and results to invalid prompt nodes
             for i in range(len(prompt_nodes)):
                 if i not in valid_prompt_indices:
