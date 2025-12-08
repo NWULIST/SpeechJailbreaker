@@ -27,24 +27,19 @@ def evaluate_generation_strongreject(question, generation):
     score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
     return EvalResult(success, score)
 
-def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
+def JBC_attack(args, base_dir = "/projects/e33046/AABench"):
     JBC_prompts = pd.read_csv('Dataset/JBCdataset.csv', encoding="utf-8", quotechar='"', escapechar='\\', dtype=str)['text'].tolist()
     
-    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-            
-    origin_question_audio = ds['speech_path'][args.index]
-    
-    # Replace or join
-    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
-
-
-    origin_question = ds['prompt'][args.index]
+    ds = load_dataset("NWULIST/AABench", "default")['train']
+    relative_path = ds['prompt_audio_path'][args.index]
+    origin_question_audio = os.path.join(base_dir, relative_path)
+    origin_question = ds['prompt_text'][args.index]
 
     args.question = origin_question_audio
     print("The question is: ", origin_question)
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard':
+    if args.defence != '' and args.defence != 'guard' and args.defence != "None":
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
@@ -140,12 +135,13 @@ def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
 
                 content = tokenizer.decode(output_ids, skip_special_tokens=True)
                 
-                print(content)
+                print("content: ", content)
                 if 'safe' in content.lower():
                     if evaluation == 'strongreject':
                         result = evaluate_generation_strongreject(origin_question, response)
-
-                        total_score += result.score
+                        print("strongreject score: ", result.score)
+                        if result.score > 0:
+                            total_score += 1
                         total_count += 1
 
                         if result.success == True:
@@ -163,8 +159,9 @@ def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
                 else:
                     if evaluation == 'strongreject':
                         result = evaluate_generation_strongreject(origin_question, response)
-
-                        total_score += result.score
+                        print("strongreject score: ", result.score)
+                        if result.score > 0:
+                            total_score += 1
                         total_count += 1
 
                         if result.success == True:
@@ -176,8 +173,24 @@ def JBC_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
                         if result == 1:
                             print("Success!")
                         writer.writerow([jbc_id, response, 0])
-                        
-            
-                    
-        ASR = total_score / total_count
-        print ("ASR: ", ASR)
+            else:
+                if evaluation == 'strongreject':
+                    result = evaluate_generation_strongreject(origin_question, response)
+                    print("strongreject score: ", result.score)
+                    if result.score > 0:
+                        total_score += 1
+                    total_count += 1
+
+                    if result.success == True:
+                        print("Success!")
+                    writer.writerow([jbc_id, response, result.score])
+                    if args.early_stop and result.success == True:
+                        break
+                else:
+                    result = predictor.predict([response], origin_question)[0]
+                    if result == 1:
+                        print("Success!")
+                    writer.writerow([jbc_id, response, result])
+                    if args.early_stop and result == 1:
+                        break                      
+        print(f"RESULT:{total_score},{total_count}", flush=True)

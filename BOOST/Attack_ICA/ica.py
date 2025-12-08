@@ -43,7 +43,7 @@ def evaluate_generation_strongreject(question, generation):
 def ICA_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     
     system_message = None
-    if args.defence != '' and args.defence != 'guard':
+    if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
