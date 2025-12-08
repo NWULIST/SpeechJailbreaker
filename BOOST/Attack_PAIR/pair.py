@@ -49,13 +49,12 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     if getattr(args, 'store_folder', None):
         os.makedirs(args.store_folder, exist_ok=True)
 
-    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-    origin_question_audio = ds['speech_path'][args.index]
-    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
-    origin_question = ds['prompt'][args.index]
+    ds = load_dataset("NWULIST/AABench", "Origin")['origin']   
+    origin_question_audio = ds['prompt_audio_path'][args.index]
+    origin_question = ds['prompt_text'][args.index]
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard':
+    if args.defence != '' or args.defence != 'guard' and args.defence != 'None':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
@@ -210,7 +209,8 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
                         if evaluation == 'strongreject':
                             result = evaluate_generation_strongreject(origin_question, target_response, args.target_str)
                             print("The result: ", result)
-                            total_score += result.score
+                            if result.score > 0:
+                                total_score += 1
                             total_count += 1
                             score = result.score
                             if result.success:
