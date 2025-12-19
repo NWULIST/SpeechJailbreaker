@@ -4,7 +4,7 @@ import subprocess
 import os
 import sys
 import os
-os.environ["OPENAI_API_KEY"] = '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'
+os.environ["OPENAI_API_KEY"] = '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'
 
 ATTACK_TO_SCRIPT = {
     'gcg': 'run_GCG.sh',

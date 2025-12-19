@@ -4,15 +4,12 @@ from dotenv import load_dotenv
 load_dotenv()
 openai_key = os.getenv('OPENAI_API_KEY')
 
-# Add the path to the BOOST folder to sys.path
 sys.path.append(os.path.abspath('../BOOST'))
 import argparse
 import random
 import numpy as np
 import torch
-from BOOST.Attack_JBC.jbc import JBC_attack
 from fastchat.model import add_model_args
-from BOOST.utils.constants import claude_key, gemini_key
 
 
 def set_random_seed(seed=42):
@@ -23,20 +20,21 @@ def set_random_seed(seed=42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
-    # For deterministic behavior (may impact performance)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='JBC Attack')
+    parser = argparse.ArgumentParser(description='JBC Attack - Batched Version')
     parser.add_argument('--defence', type=str, default='', help='defence file location')
     parser.add_argument('--guard', type=str, default=None, help='guard model')
-    parser.add_argument('--index', type=int, default=10, help='The index of the question')
+    parser.add_argument('--start_index', type=int, default=None, help='Start index of batch (deprecated, use --indices)')
+    parser.add_argument('--end_index', type=int, default=None, help='End index of batch (deprecated, use --indices)')
+    parser.add_argument('--indices', type=str, default=None, help='Comma-separated list of indices to process')
     parser.add_argument('--model_path', type=str, default='gpt-3.5-turbo-0125',
                         help='mutate model path')
     parser.add_argument('--target_model', type=str, default='google/gemma-7b-it',
-                        help='The target model, openai model or open-sourced LLMs')
+                        help='The target model')
     parser.add_argument('--few_shot_num', type=int, default=1, help='The number of few shot examples')
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--early_stop", action="store_true", help="early stop when the attack is successful")
@@ -46,10 +44,26 @@ if __name__ == "__main__":
                         help='Path to the harmful questions dataset')
     parser.add_argument('--targets_dataset', type=str, default='Dataset/harmful_targets.csv',
                         help='Path to the harmful targets dataset')
-    parser.add_argument('--evaluation', type=str, default='default', choices=['default', 'strongreject'], help='Evaluation method for attack success: "default" (original) or "strongreject" (use strongreject autograder)')
+    parser.add_argument('--evaluation', type=str, default='default', 
+                        choices=['default', 'strongreject'], 
+                        help='Evaluation method')
     add_model_args(parser)
 
     args = parser.parse_args()
-    set_random_seed(args.seed)  # Set random seed
+    set_random_seed(args.seed)
     args.openai_key = openai_key
+    
+    # Parse indices
+    if args.indices:
+        args.indices_list = [int(i) for i in args.indices.split(',')]
+    elif args.start_index is not None and args.end_index is not None:
+        # Backward compatibility with range-based approach
+        args.indices_list = list(range(args.start_index, args.end_index + 1))
+    else:
+        raise ValueError("Must provide either --indices or both --start_index and --end_index")
+    
+    # Import here to avoid loading heavy imports until needed
+    from BOOST.Attack_JBC.jbc import JBC_attack
+    
+    # Process batch of indices
     JBC_attack(args)
