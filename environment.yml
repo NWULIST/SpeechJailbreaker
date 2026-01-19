@@ -4,11 +4,11 @@ channels:
   - conda-forge
 dependencies:
   - python=3.9.18
+  - pytorch
+  - torchvision
+  - torchaudio
   - pip
   - pip:
-      - torch
-      - torchvision
-      - torchaudio
       - transformers
       - openai
       - pandas
@@ -18,7 +18,6 @@ dependencies:
       - protobuf
       - transformers_stream_generator
       - tiktoken
-      - autoawq
       - importlib-metadata
       - auto-gptq
       - sympy

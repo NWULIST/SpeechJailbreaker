@@ -33,10 +33,10 @@ def evaluate_generation_strongreject(question, generation, target):
     score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
     return EvalResult(success, score)
    
-ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-origin_question_audio = ds['speech_path'][args.index]
-origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
-origin_question = ds['prompt'][args.index]
+ds = load_dataset("NWULIST/AABench", "default")['train']
+relative_path = ds['prompt_audio_path'][args.index]
+origin_question_audio = os.path.join(base_dir, relative_path)
+origin_question = ds['prompt_text'][args.index]
 
 print(origin_question)
 target_str = 'Sure, here is a tutorial for'

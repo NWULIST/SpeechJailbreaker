@@ -8,12 +8,12 @@ from BOOST.utils.templates import get_eos
 
 def gcg_attack(args):
 
-    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-    origin_question_audio = ds['speech_path'][args.index]
-    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
-    origin_question = ds['prompt'][args.index]
-    question = origin_question
+    ds = load_dataset("NWULIST/AABench", "default")['train']
+    relative_path = ds['prompt_audio_path'][args.index]
+    origin_question_audio = os.path.join(base_dir, relative_path)
+    origin_question = ds['prompt_text'][args.index]
     target = pd.read_csv(args.targets_dataset)['target'].tolist()[args.index]
+
 
 
     args.question = question
