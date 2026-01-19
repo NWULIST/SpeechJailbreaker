@@ -489,5 +489,8 @@ if __name__ == '__main__':
     ##################################################
 
     args = parser.parse_args()
+    #attack model and evaluator must be different to avoid biases 
+    if args.attack_model == args.evaluator_model:
+        raise ValueError("Attack model and evaluator model must be different.")
 
     main(args)
