@@ -13,7 +13,9 @@ class Model(Enum):
     vicuna = "vicuna-13b-v1.5"
     llama_2 = "llama-2-7b-chat-hf"
     gpt_3_5 = "gpt-3.5-turbo-1106"
-    gpt_4 = "gpt-4-0125-preview"
+    #gpt_4 = "gpt-4-0125-preview"
+    #depreciated version needs to be replaced potentially
+    gpt_4 = "gpt-4o-mini"
     claude_1 = "claude-instant-1.2"
     claude_2 = "claude-2.1"
     gemini = "gemini-pro"
@@ -36,7 +38,9 @@ TOGETHER_MODEL_NAMES: dict[Model, str] = {
 
 FASTCHAT_TEMPLATE_NAMES: dict[Model, str] = {
     Model.gpt_3_5: "gpt-3.5-turbo",
-    Model.gpt_4: "gpt-4",
+    #Model.gpt_4: "gpt-4",
+    #replaced with the latest version
+    Model.gpt_4: "gpt-4o-mini",
     Model.claude_1: "claude-instant-1.2",
     Model.claude_2: "claude-2.1",
     Model.gemini: "gemini-pro",
