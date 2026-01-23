@@ -63,30 +63,26 @@ def load_audiojailbreak_entry(index: int, base_dir: Path) -> Tuple[str, Optional
     """
     Returns (origin_question, audio_path). If audio not available, returns (text, None).
     Priority:
-      1) local cache under base_dir/data/AudioJailbreak
-      2) huggingface datasets (MBZUAI/AudioJailbreak)
+      1) local cache under base_dir/data/AABench
+      2) huggingface datasets (NWULIST/AABench)
     """
-    local_csv = base_dir / "data" / "AudioJailbreak" / "data.csv"
-    local_json = base_dir / "data" / "AudioJailbreak" / "data.json"
+    local_csv = base_dir / "data" / "AABench" / "data.csv"
+    local_json = base_dir / "data" / "AABench" / "data.json"
     if local_csv.exists():
         rows = list(csv.DictReader(open(local_csv, encoding="utf-8")))
         row = rows[index % len(rows)]
-        return row.get("prompt", "") or row.get("text", ""), row.get("audio_path")
+        return row.get("prompt_text", "") or row.get("text", ""), row.get("prompt_audio_path")
     if local_json.exists():
         data = json.load(open(local_json, encoding="utf-8"))
         row = data[index % len(data)]
-        return row.get("prompt", "") or row.get("text", ""), row.get("audio_path")
+        return row.get("prompt_text", "") or row.get("text", ""), row.get("prompt_audio_path")
 
     try:
-        ds = load_dataset("MBZUAI/AudioJailbreak")
+        ds = load_dataset("NWULIST/AABench")
         split = "test" if "test" in ds else list(ds.keys())[0]
         row = ds[split][index % len(ds[split])]
-        prompt = row.get("prompt", row.get("text", ""))
-        audio_path = None
-        if isinstance(row.get("audio"), dict) and "path" in row["audio"]:
-            audio_path = row["audio"]["path"]
-        elif "audio_path" in row:
-            audio_path = row["audio_path"]
+        prompt = row.get("prompt_text", row.get("text", ""))
+        audio_path = row["prompt_audio_path"]
         return prompt, audio_path
     except Exception:
         # last resort

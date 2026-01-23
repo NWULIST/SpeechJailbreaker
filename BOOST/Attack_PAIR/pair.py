@@ -41,7 +41,7 @@ def evaluate_generation_strongreject(question, generation, target):
     score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
     return EvalResult(success, score)
 
-def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
+def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
     memory_before = memory_usage_psutil()
 
         
@@ -49,8 +49,9 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
     if getattr(args, 'store_folder', None):
         os.makedirs(args.store_folder, exist_ok=True)
 
-    ds = load_dataset("NWULIST/AABench", "Origin")['origin']   
-    origin_question_audio = ds['prompt_audio_path'][args.index]
+    ds = load_dataset("NWULIST/AABench", "default")['train']  
+    relative_path = ds['prompt_audio_path'][args.index]
+    origin_question_audio = os.path.join(base_dir, relative_path)
     origin_question = ds['prompt_text'][args.index]
 
     system_message = None

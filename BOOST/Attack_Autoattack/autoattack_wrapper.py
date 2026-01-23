@@ -270,7 +270,7 @@ class APGD_CE_LLM:
         return prompt, best_loss
 
 
-def autoattack_attack(args, base_dir="/projects/e33046/AudioJailbreak"):
+def autoattack_attack(args, base_dir="/projects/e33046/AABench"):
     """
     Main function for AutoAttack on speech models
 
@@ -297,13 +297,11 @@ def autoattack_attack(args, base_dir="/projects/e33046/AudioJailbreak"):
         target_model = LocalLLM(args.target_model)
 
     # Load dataset from Hugging Face
-    print("Loading dataset from MBZUAI/AudioJailbreak...")
-    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-
-    # Get question text and audio path
-    origin_question = ds['prompt'][args.index]
-    origin_question_audio = ds['speech_path'][args.index]
-    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
+    print("Loading dataset from AABench..")
+    ds = load_dataset("NWULIST/AABench", "default")['train']
+    relative_path = ds['prompt_audio_path'][args.index]
+    origin_question_audio = os.path.join(base_dir, relative_path)
+    origin_question = ds['prompt_text'][args.index]
 
     print(f"Target Model: {args.target_model}")
     print(f"Question Index: {args.index}")

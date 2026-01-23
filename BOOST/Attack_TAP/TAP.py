@@ -111,7 +111,7 @@ def evaluate_generation_strongreject(question, generation, target):
     return EvalResult(success, score)
 
 
-def tap_attack(args, base_dir="/projects/e33046/AudioJailbreak"):
+def tap_attack(args, base_dir="/projects/e33046/AABench"):
     seed_path = getattr(args, 'seed_path', None)
     if seed_path and os.path.exists(seed_path):
         try:
@@ -131,10 +131,10 @@ def tap_attack(args, base_dir="/projects/e33046/AudioJailbreak"):
     if getattr(args, 'store_folder', None):
         os.makedirs(args.store_folder, exist_ok=True)
 
-    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-    origin_question_audio = ds['speech_path'][args.index]
-    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
-    origin_question = ds['prompt'][args.index]
+    ds = load_dataset("NWULIST/AABench", "default")['train']
+    relative_path = ds['prompt_audio_path'][args.index]
+    origin_question_audio = os.path.join(base_dir, relative_path)
+    origin_question = ds['prompt_text'][args.index]
 
     system_message = None
     if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
