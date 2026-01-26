@@ -29,3 +29,4 @@ dependencies:
       - anthropic
       - google.generativeai
       - tqdm
+      - librosa 
