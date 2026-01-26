@@ -31,6 +31,10 @@ def JBC_attack(args, base_dir = "/projects/e33046/AABench"):
     JBC_prompts = pd.read_csv('Dataset/JBCdataset.csv', encoding="utf-8", quotechar='"', escapechar='\\', dtype=str)['text'].tolist()
     
     ds = load_dataset("NWULIST/AABench", "default")['train']
+    
+    #seeing how much information is being read from huggingface
+    #print(f"Total Samples from AABENCH: {len(ds)}")
+
     relative_path = ds['prompt_audio_path'][args.index]
     origin_question_audio = os.path.join(base_dir, relative_path)
     origin_question = ds['prompt_text'][args.index]
