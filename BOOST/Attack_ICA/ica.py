@@ -99,8 +99,11 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
             writer = csv.writer(f)
             writer.writerow(['response', 'result'])
             
-            
+            num_samples = int(os.environ.get("NUM_SAMPLES", "1")) #default 1 if not set 
             ds = load_dataset("NWULIST/AABench", "default")['train']
+            ds = ds[:num_samples]
+            args.num_tasks = min(args.num_tasks, num_samples)
+
             relative_path = ds['prompt_audio_path'][args.index]
             origin_question_audio = os.path.join(base_dir, relative_path)
             origin_question = ds['prompt_text'][args.index]

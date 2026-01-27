@@ -29,7 +29,12 @@ def main():
     parser.add_argument('--evaluation', required=False, default='strongreject', help='Evaluation method to pass to the attack script (default or strongreject)')
     parser.add_argument('--num_tasks', type=int, default=2, help='Number of tasks to run in parallel (default: 3)')
     parser.add_argument('--guard', required=False, default=None, help='Guard model to run')
+    parser.add_argument('--few_shot_num',type=int, required=False, default=0, help='Number of example prompts to show to model')
     args = parser.parse_args()
+
+    if args.few_shot_num > 0 and args.attack != "ica":
+        print("--few_shot_num will be ignored fornon-ICA model")
+        args.few_shot_num = 0
 
     script_name = ATTACK_TO_SCRIPT[args.attack]
     script_path = os.path.join(os.path.dirname(__file__), script_name)
@@ -39,9 +44,16 @@ def main():
     # env['MODEL_PATH'] = args.model_path
     # env['EVALUATION'] = args.evaluation
 
+    subprocess_input = [script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--defence", str(args.defence), '--guard', str(args.guard)]
+
+    #if few shots is enabled -> addd it to input to be passed on
+    if args.attack == 'ica' and args.few_shot_num > 0:
+        subprocess_input += ["--few_shot_num", str(args.few_shot_num)]
+
+
     print(f"[INFO] Running {script_name} under Defence {args.defence} with MODEL_PATH={args.model_path} and EVALUATION={args.evaluation}")
     try:
-        result = subprocess.run([script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--defence", str(args.defence), '--guard', str(args.guard)], check=True)
+        result = subprocess.run(subprocess_input, check=True)
         sys.exit(result.returncode)
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] {script_name} failed with exit code {e.returncode}")

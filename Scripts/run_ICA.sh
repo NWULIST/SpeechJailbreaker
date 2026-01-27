@@ -4,27 +4,41 @@ export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
+#PYTHON_SCRIPT="./Experiments/ica_exp.py"
 PYTHON_SCRIPT="./Experiments/ica_exp.py"
 MODEL_PATH="google/gemma-7b-it"
 EVALUATION="default"
 RUN_INDEX=2
 ADD_EOS=False
+FEW_SHOT_NUM=0
 
 # GPU
 GPU_MEMORY=60000
 #NUM_GPU_SEARCH=7
 #changing to 0 becuase we are only testing on one GPU
-NUM_GPU=0
+NUM_GPU_SEARCH=0
 #NUM_TASKS=3 # Number of tasks to run in parallel
 
 #changing to 2 tasks just to test
 NUM_TASKS=2
+
+#number of prompts(out of all prompts) to run ica on (for testing)
+NUM_SAMPLES=5
+MAX_PARALLEL=1
+
+
+RETRY_DELAY=5
+LOCK_DIR="/tmp/gpu_locks"
 
 # Dataset paths
 HARMFUL_DATASET="Dataset/harmful.csv"
 TARGETS_DATASET="Dataset/harmful_targets.csv"
 defence=""
 guard=""
+
+################################
+# PARSE ARGUMENTS
+###############################
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -34,10 +48,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --evaluation)
       EVALUATION="$2"
-      shift 2
-      ;;
-    --run_index)
-      RUN_INDEX="$2"
       shift 2
       ;;
     --add_eos)
@@ -62,6 +72,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --defence)
       defence="$2"
+      shift 2
+      ;;
+    --few_shot_num)
+      FEW_SHOT_NUM="$2"
       shift 2
       ;;
     --guard)
@@ -89,9 +103,11 @@ else
     LOG_PATH="Logs/${MODEL_PATH}/ICA-${RUN_INDEX}"
 fi
 
+RESULTS_CSV="${LOG_PATH}/results.csv"
 
 # Create the log directory if it does not exist
 mkdir -p "$LOG_PATH"
+mkdir -p "$LOCK_DIR"
 
 # Conditional flag for EARLY_STOP
 EARLY_STOP_FLAG=""
@@ -99,43 +115,114 @@ if [ "$EARLY_STOP" = "True" ]; then
     EARLY_STOP_FLAG="--early_stop"
 fi
 
-# Function to find the first available GPU
-find_free_gpu() {
-    # {0..$NUM_GPU_SEARCH}
-    for i in $(seq 0 $NUM_GPU_SEARCH); do
-        free_mem=$(nvidia-smi -i $i --query-gpu=memory.free --format=csv,noheader,nounits | awk '{print $1}')
-        if [[ "$free_mem" =~ ^[0-9]+$ ]] && [ "$free_mem" -ge $GPU_MEMORY ]; then
-            echo $i
-            return
-        fi
-    done
+###########################################
+# CLEANUP ON INTERRUPT
+###########################################
+PIDS=()
+cleanup() {
+    echo "Keyboard interrupt detected. Cleaning up..."
+    if [[ ${#PIDS[@]} -gt 0 ]]; then
+        echo "Killing background jobs..."
+        kill -9 "${PIDS[@]}" 2>/dev/null || true
+    fi
+    echo "Removing GPU lock files..."
+    rm -f "$LOCK_DIR"/gpu_*.lock
+    exit 1
+}
+trap cleanup SIGINT SIGTERM
+###########################################
+# GPU FUNCTIONS (COPY FROM JBC)
+###########################################
+get_available_gpus() { seq 0 $NUM_GPU_SEARCH; }
 
-    echo "-1" # Return -1 if no suitable GPU is found
+gpu_has_memory() {
+    local gpu=$1
+    local free_mem
+    free_mem=$(nvidia-smi -i $gpu --query-gpu=memory.free --format=csv,noheader,nounits)
+    [[ "$free_mem" -ge "$GPU_MEMORY" ]]
 }
 
-# Start the jobs with GPU assignment
-for FEW_SHOT_NUM in {0..1}; do
+lock_gpu() {
+    local gpu=$1
+    (set -o noclobber; echo "$$" > "$LOCK_DIR/gpu_${gpu}.lock") 2>/dev/null
+}
 
-    FREE_GPU=-1
+unlock_gpu() {
+    rm -f "$LOCK_DIR/gpu_$1.lock"
+}
 
-    # Keep looping until a free GPU is found
-    while [ $FREE_GPU -eq -1 ]; do
-        FREE_GPU=$(find_free_gpu)
-        if [ $FREE_GPU -eq -1 ]; then
-            sleep 5 # Wait for 5 seconds before trying to find a free GPU again
-        fi
+###########################################
+# ICA JOB FUNCTION
+###########################################
+run_job() {
+    local idx=$1
+    local shot=$2
+
+    echo "Job prompt=$idx fs=$shot waiting for GPU..."
+    local gpu=-1
+    while true; do
+        for g in $(get_available_gpus); do
+            if lock_gpu "$g"; then
+                if gpu_has_memory "$g"; then gpu=$g; break
+                else unlock_gpu "$g"; fi
+            fi
+        done
+        [[ $gpu -ge 0 ]] && break
+        sleep $RETRY_DELAY
     done
 
-    (
-        echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH $ADD_EOS_FLAG --few_shot_num $FEW_SHOT_NUM  --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET --num_tasks $NUM_TASKS --defence $defence --guard $guard > ${LOG_PATH}/${FEW_SHOT_NUM}.log 2>&1" >> ${LOG_PATH}/${FEW_SHOT_NUM}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT"  --target_model $MODEL_PATH $ADD_EOS_FLAG --few_shot_num $FEW_SHOT_NUM  --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" --num_tasks  $NUM_TASKS --defence $defence --guard $guard > "${LOG_PATH}/${FEW_SHOT_NUM}.log" 2>&1
-        echo "Task $index on GPU $FREE_GPU finished."
-    ) 
+    local log="${LOG_PATH}/prompt_${idx}.log"
+    echo "Job prompt=$idx fs=$shot running on GPU $gpu"
 
-    # Wait for 30 seconds to give the GPU some time to allocate memory
-    sleep 30
+    echo "" >> "$log"
+    echo "========================================" >> "$log"
+    echo "FS = ${shot}" >> "$log"
+    echo "========================================" >> "$log"
+
+    CUDA_VISIBLE_DEVICES=$gpu NUM_SAMPLES=$NUM_SAMPLES python -u "$PYTHON_SCRIPT" \
+        --target_model "$MODEL_PATH" \
+        --few_shot_num "$shot" \
+        --evaluation "$EVALUATION" \
+        --harmful_dataset "$HARMFUL_DATASET" \
+        --targets_dataset "$TARGETS_DATASET" \
+        --defence "$defence" \
+        --guard "$guard" \
+        &> "$log"
+
+    # extract RESULT lines later if desired
+    unlock_gpu "$gpu"
+}
+
+###########################################
+# MAIN
+###########################################
+if [[ "$NUM_TASKS" -le 0 ]]; then
+    echo "NUM_TASKS <= 0. Nothing to run."
+    exit 0
+fi
+
+# Write CSV header
+echo "job_index,total_score,total_count" > "$RESULTS_CSV"
+
+echo "Launching $NUM_TASKS jobs with maximum $MAX_PARALLEL in parallel..."
+
+for idx in $(seq 1 $NUM_TASKS); do
+    run_job $idx $FEW_SHOT_NUM &
+    PIDS+=($!)
+
+    # Wait if the number of running jobs reaches MAX_PARALLEL
+    while [[ $(jobs -rp | wc -l) -ge $MAX_PARALLEL ]]; do
+        sleep 1
+    done
 done
 
-# Wait for all background jobs to finish
+# Wait for all remaining jobs
 wait
+
+# Compute total ASR
+total_score=$(awk -F, 'NR>1 {sum+=$2} END {print sum}' "$RESULTS_CSV")
+total_count=$(awk -F, 'NR>1 {sum+=$3} END {print sum}' "$RESULTS_CSV")
+total_ASR=$(awk -v s="$total_score" -v c="$total_count" 'BEGIN {print (c>0 ? s/c : 0)}')
+
+echo "TOTAL_ASR,$total_ASR" >> "$RESULTS_CSV"
+echo "All jobs completed. TOTAL_ASR=$total_ASR"
