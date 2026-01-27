@@ -30,4 +30,5 @@ dependencies:
       - tqdm
       - librosa 
       - dotenv
+      - timm
       #- vllm

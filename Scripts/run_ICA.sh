@@ -12,8 +12,13 @@ ADD_EOS=False
 
 # GPU
 GPU_MEMORY=60000
-NUM_GPU_SEARCH=7
-NUM_TASKS=3 # Number of tasks to run in parallel
+#NUM_GPU_SEARCH=7
+#changing to 0 becuase we are only testing on one GPU
+NUM_GPU=0
+#NUM_TASKS=3 # Number of tasks to run in parallel
+
+#changing to 2 tasks just to test
+NUM_TASKS=2
 
 # Dataset paths
 HARMFUL_DATASET="Dataset/harmful.csv"

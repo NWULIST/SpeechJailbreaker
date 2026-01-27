@@ -37,6 +37,64 @@ MAX_PARALLEL=1
 
 RETRY_DELAY=5
 LOCK_DIR="/tmp/gpu_locks"
+
+#add parsing so logging files are correctly labeled for the appropriate model
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --model_path)
+      MODEL_PATH="$2"
+      shift 2
+      ;;
+    --evaluation)
+      EVALUATION="$2"
+      shift 2
+      ;;
+    --run_index)
+      RUN_INDEX="$2"
+      shift 2
+      ;;
+    --add_eos)
+      ADD_EOS="$2"
+      shift 2
+      ;;
+    --eos_num)
+      EOS_NUM="$2"
+      shift 2
+      ;;
+    --gpu_memory)
+      GPU_MEMORY="$2"
+      shift 2
+      ;;
+    --num_gpu_search)
+      NUM_GPU_SEARCH="$2"
+      shift 2
+      ;;
+    --num_tasks)
+      NUM_TASKS="$2"
+      shift 2
+      ;;
+    --defence)
+      defence="$2"
+      shift 2
+      ;;
+    --guard)
+      guard="$2"
+      shift 2
+      ;;
+    --harmful_dataset)
+      HARMFUL_DATASET="$2"
+      shift 2
+      ;;
+    --targets_dataset)
+      TARGETS_DATASET="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
 LOG_PATH="Logs/${MODEL_PATH}/JBC-${RUN_INDEX}"
 RESULTS_CSV="${LOG_PATH}/results.csv"
 
