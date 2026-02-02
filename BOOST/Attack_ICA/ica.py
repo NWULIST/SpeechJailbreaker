@@ -124,13 +124,13 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
 
         if args.few_shot_num == 1:
             ICL = one_shot
-            prompt = ICL 
+            prompt = ICL + origin_question
         elif args.few_shot_num == 2:
             ICL = two_shot
-            prompt = ICL
+            prompt = ICL + origin_question
         elif args.few_shot_num == 3:
             ICL = three_shot
-            prompt = ICL 
+            prompt = ICL + origin_question
         elif args.few_shot_num == 0:
             prompt = ''
         else:
