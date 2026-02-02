@@ -4,7 +4,6 @@ export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
-#PYTHON_SCRIPT="./Experiments/ica_exp.py"
 PYTHON_SCRIPT="./Experiments/ica_exp.py"
 MODEL_PATH="google/gemma-7b-it"
 EVALUATION="default"
@@ -21,9 +20,6 @@ NUM_GPU_SEARCH=0
 
 #changing to 2 tasks just to test
 NUM_TASKS=2
-
-#number of prompts(out of all prompts) to run ica on (for testing)
-NUM_SAMPLES=5
 MAX_PARALLEL=1
 
 
@@ -174,20 +170,16 @@ run_job() {
     local log="${LOG_PATH}/prompt_${idx}.log"
     echo "Job prompt=$idx fs=$shot running on GPU $gpu"
 
-    echo "" >> "$log"
-    echo "========================================" >> "$log"
-    echo "FS = ${shot}" >> "$log"
-    echo "========================================" >> "$log"
-
-    CUDA_VISIBLE_DEVICES=$gpu NUM_SAMPLES=$NUM_SAMPLES python -u "$PYTHON_SCRIPT" \
-        --target_model "$MODEL_PATH" \
-        --few_shot_num "$shot" \
-        --evaluation "$EVALUATION" \
-        --harmful_dataset "$HARMFUL_DATASET" \
-        --targets_dataset "$TARGETS_DATASET" \
-        --defence "$defence" \
-        --guard "$guard" \
-        &> "$log"
+    CUDA_VISIBLE_DEVICES=$gpu python -u "$PYTHON_SCRIPT" \
+      --target_model "$MODEL_PATH" \
+      --evaluation "$EVALUATION" \
+      --few_shot_num "$FEW_SHOT_NUM" \
+      --prompt_index "$idx" \
+      --harmful_dataset "$HARMFUL_DATASET" \
+      --targets_dataset "$TARGETS_DATASET" \
+      --defence "$defence" \
+      --guard "$guard" \
+      &> "$log"
 
     # extract RESULT lines later if desired
     unlock_gpu "$gpu"
@@ -206,11 +198,10 @@ echo "job_index,total_score,total_count" > "$RESULTS_CSV"
 
 echo "Launching $NUM_TASKS jobs with maximum $MAX_PARALLEL in parallel..."
 
-for idx in $(seq 1 $NUM_TASKS); do
-    run_job $idx $FEW_SHOT_NUM &
+for idx in $(seq 0 $((NUM_TASKS-1))); do
+    run_job "$idx" "$FEW_SHOT_NUM" &
     PIDS+=($!)
 
-    # Wait if the number of running jobs reaches MAX_PARALLEL
     while [[ $(jobs -rp | wc -l) -ge $MAX_PARALLEL ]]; do
         sleep 1
     done
