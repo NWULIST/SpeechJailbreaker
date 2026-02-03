@@ -1,31 +1,67 @@
 name: xllm_env
 channels:
-  - defaults
   - conda-forge
+  - defaults
+
 dependencies:
-  - python=3.9.18
+  - python=3.10
   - pip
+  - numpy
+  - pandas
+
+  # build tooling
+  - cmake
+  - ninja
+  - make
+  - pkg-config
+  - git
+  - patchelf
+
+  # match system glibc (2.28) when compiling native code
+  - sysroot_linux-64=2.28
+
+  # IMPORTANT: host compiler compatible with CUDA 12.8 (max GCC 14)
+  # needed for vllm
+  - gcc_linux-64=14.*
+  - gxx_linux-64=14.*
+
+  # IMPORTANT: use conda-forge CUDA toolkit
+  # needed for vllm
+  - cuda-toolkit=12.8.*
+
+  - setuptools
+  - wheel
+
   - pip:
+      # core ML stack
       - torch
       - torchvision
       - torchaudio
       - transformers
-      - openai
-      - pandas
-      - einops
       - accelerate
+      - einops
       - sentencepiece
       - protobuf
       - transformers_stream_generator
       - tiktoken
-      - autoawq
-      - importlib-metadata
-      - auto-gptq
       - sympy
+      - tqdm
+      - librosa
+
+      # APIs / clients
+      - openai
+      - anthropic
+      - litellm
+      - google-generativeai
+
+      # other tooling
       - llm
       - fastchat
-      - numpy
+      - jailbreakbench
+
+      # quantization
+      - autoawq
+      - auto-gptq
+
+      # build from source on glibc 2.28 system
       - vllm
-      - anthropic
-      - google.generativeai
-      - tqdm
