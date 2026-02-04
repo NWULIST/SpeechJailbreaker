@@ -210,10 +210,16 @@ done
 # Wait for all remaining jobs
 wait
 
-# Compute total ASR
-total_score=$(awk -F, 'NR>1 {sum+=$2} END {print sum}' "$RESULTS_CSV")
-total_count=$(awk -F, 'NR>1 {sum+=$3} END {print sum}' "$RESULTS_CSV")
+
+
+# (sum of 'result' column)
+total_score=$(awk -F, 'NR>1 {sum+=$2} END {print sum+0}' "$RESULTS_CSV")
+# total_count (number of jobs / lines)
+total_count=$(awk -F, 'NR>1 {count++} END {print count+0}' "$RESULTS_CSV")
 total_ASR=$(awk -v s="$total_score" -v c="$total_count" 'BEGIN {print (c>0 ? s/c : 0)}')
 
-echo "TOTAL_ASR,$total_ASR" >> "$RESULTS_CSV"
+# Append a summary row to CSV
+echo "TOTAL_ASR,$total_score,$total_count" >> "$RESULTS_CSV"
+echo "Total jobs: $total_count"
+echo "Total jailbroken attempts: $total_score"
 echo "All jobs completed. TOTAL_ASR=$total_ASR"

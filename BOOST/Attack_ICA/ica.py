@@ -139,10 +139,12 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
         response = target_model.generate(args.question, prompt, max_tokens=args.max_new_tokens)
 
         print(response)
-        if evaluation == "strongreject":
+        if evaluation == "strongreject" and args.defence != 'guard':
             result = evaluate_generation_strongreject(origin_question, response)
             print("strongreject score:", result.score)
-            
+            writer.writerow([response, result.score])
+
+
         if args.defence == 'guard':
             tokenizer = AutoTokenizer.from_pretrained(args.guard)
             model = AutoModelForCausalLM.from_pretrained(
