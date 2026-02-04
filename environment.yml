@@ -1,14 +1,11 @@
-name: xllm_env
+name: xllm_310yu
 channels:
   - defaults
   - conda-forge
 dependencies:
-  - python=3.9.18
+  - python=3.10
   - pip
   - pip:
-      - torch
-      - torchvision
-      - torchaudio
       - transformers
       - openai
       - pandas
@@ -25,7 +22,7 @@ dependencies:
       - llm
       - fastchat
       - numpy
-      - vllm
+     # - vllm
       - anthropic
       - google.generativeai
       - tqdm

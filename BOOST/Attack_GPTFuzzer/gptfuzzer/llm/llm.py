@@ -422,13 +422,17 @@ class LocalSpeechLLM(LLM):
                      debug=False):
         # Special handling for Qwen2-Audio models which use an Audio processor
         if 'Qwen2-Audio' in model_path or 'Qwen/Qwen2-Audio' in model_path:
+            print("qwenuadioforconditionalgeneration")
             model = Qwen2AudioForConditionalGeneration.from_pretrained(
                 model_path, trust_remote_code=True
             )
+            print("qwen2")
             model = model.to(device)
+            print("qwen3")
             processor = AutoProcessor.from_pretrained(
                 model_path, trust_remote_code=True
             )
+            print("qwen4")
             return model, processor
         elif 'gemma' in model_path:
             model = AutoModelForImageTextToText.from_pretrained(

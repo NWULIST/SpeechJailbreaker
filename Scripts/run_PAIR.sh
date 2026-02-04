@@ -1,24 +1,21 @@
 #!/bin/bash
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-PYTHON_SCRIPT="./Experiments/pair_exp.py"
+PYTHON_SCRIPT="../Experiments/pair_exp.py"
 MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="default"
 RUN_INDEX=2
 ADD_EOS=False
 EOS_NUM="10"
-defence = ""
+defence=""
 guard=""
 # GPU
 GPU_MEMORY=40000
 NUM_GPU_SEARCH=7
 NUM_TASKS=1 # Number of tasks to run in parallel
 
-# Dataset paths
-HARMFUL_DATASET="Dataset/harmful.csv"
-TARGETS_DATASET="Dataset/harmful_targets.csv"
+
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -56,52 +53,26 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+
 LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
 # Create the log directory if it does not exist
 mkdir -p "$LOG_PATH"
 
-# Conditional flag for EARLY_STOP
-EARLY_STOP_FLAG=""
-if [ "$EARLY_STOP" = "True" ]; then
-    EARLY_STOP_FLAG="--early_stop"
-fi
-
-# Function to find the first available GPU
-find_free_gpu() {
-    # {0..$NUM_GPU_SEARCH}
-    for i in $(seq 0 $NUM_GPU_SEARCH); do
-        free_mem=$(nvidia-smi -i $i --query-gpu=memory.free --format=csv,noheader,nounits | awk '{print $1}')
-        if [[ "$free_mem" =~ ^[0-9]+$ ]] && [ "$free_mem" -ge $GPU_MEMORY ]; then
-            echo $i
-            return
-        fi
-    done
-
-    echo "-1" # Return -1 if no suitable GPU is found
-}
 
 # Start the jobs with GPU assignment
 for index in $(seq 0 $NUM_TASKS); do
 
-    FREE_GPU=-1
-
-    # Keep looping until a free GPU is found
-    while [ $FREE_GPU -eq -1 ]; do
-        FREE_GPU=$(find_free_gpu)
-        if [ $FREE_GPU -eq -1 ]; then
-            sleep 5 # Wait for 5 seconds before trying to find a free GPU again
-        fi
-    done
 
     (
-        echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index > "${LOG_PATH}/${index}.log" 2>&1
-        echo "Task $index on GPU $FREE_GPU finished."
+        echo "Task $index started on GPU."
+        echo "CMD: python -u $PYTHON_SCRIPT --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index" 
+        echo "CMD: python -u $PYTHON_SCRIPT --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        python -u "$PYTHON_SCRIPT" --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index > "${LOG_PATH}/${index}.log" 2>&1
+        echo "Task $index on GPU finished."
     ) 
 
     # Wait for 30 seconds to give the GPU some time to allocate memory
-    sleep 30
+    sleep 60
 done
 
 # Wait for all background jobs to finish

@@ -4,6 +4,7 @@ import math
 import multiprocessing
 import re
 from dataclasses import dataclass
+import os
 
 import openai
 import tqdm
@@ -65,7 +66,12 @@ def autograde_response(question: str, response: str) -> AutograderResponse:
     AutograderResponse
         An object containing the normalized score, the grader model input, and the grader model output.
     """
-    with open("strongreject/strongreject_evaluator_prompt.txt", "r") as f:
+    
+    # Build the full path to the text file
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_dir, "strongreject_evaluator_prompt.txt")
+
+    with open(file_path, "r") as f:
         autograder_prompt = f.read()
 
     model_input = autograder_prompt.format(prompt=question, response=response)

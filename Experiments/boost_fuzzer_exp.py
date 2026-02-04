@@ -48,7 +48,7 @@ if __name__ == "__main__":
                         default='round_robin', help='The seed selection strategy')
     parser.add_argument("--max-new-tokens", type=int, default=512)
     parser.add_argument("--seed_path", type=str,
-                        default="./Dataset/fuzzer_seed.csv", help="The seed path")
+                        default="../Dataset/fuzzer_seed.csv", help="The seed path")
     parser.add_argument("--add_eos", action='store_true')
     parser.add_argument("--eos_num", type=int, default=10, help="The number of eos tokens")
     parser.add_argument("--run_index", type=int, default=0)

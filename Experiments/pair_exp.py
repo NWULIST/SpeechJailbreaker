@@ -5,7 +5,10 @@ load_dotenv()
 openai_key = os.getenv('OPENAI_API_KEY')
 
 # Add the path to the BOOST folder to sys.path
-sys.path.append(os.path.abspath('../BOOST'))
+#sys.path.append(os.path.abspath('../BOOST'))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+sys.path.insert(0, project_root)
 import argparse
 import random
 import numpy as np
@@ -82,7 +85,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_streams",
         type = int,
-        default = 3, #TODO changed
+        default = 2, #TODO changed
         help = "Number of concurrent jailbreak conversations. If this is too large, then there may be out of memory errors when running locally. For our experiments, we use 30."
     )
     parser.add_argument(
@@ -96,7 +99,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_iterations",
         type = int,
-        default = 10,
+        default = 2,
         help = "Number of iterations to run the attack. For our experiments, we use 3."
     )
     parser.add_argument( 
