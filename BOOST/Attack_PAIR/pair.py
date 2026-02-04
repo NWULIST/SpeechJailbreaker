@@ -112,10 +112,8 @@ def PAIR_attack(args, base_dir = "/home/niy0569/SpeechJailbreaker"):
 
    
     # Initialize models and judge
-    print("loading attack and target models??")
     attackLM, _ = load_attack_and_target_models(args)
     judgeLM = load_judge(args)
-    print("loaded attack and target models?? Loaded judge")
 
     save_path = f'./Results/{args.target_model}/PAIR/{args.index}.csv'
     sr_save_path = f'./Results/{args.target_model}/PAIR/sr_{args.index}.csv'
@@ -153,23 +151,17 @@ def PAIR_attack(args, base_dir = "/home/niy0569/SpeechJailbreaker"):
         total_count += 1
         print("total count: ", total_count)
         if iteration > 1:
-            print("processed_reponse")
             processed_response_list = [process_target_response(target_response, score, origin_question, args.target_str) for target_response, score in zip(target_response_list,judge_scores)]
-            print(processed_response_list)
-        
+
 
         # Get adversarial prompts and improvement
         extracted_attack_list = attackLM.get_attack(convs_list, processed_response_list)
-        print("extracted attack list: ")
-        print(extracted_attack_list)
+
 
         # Extract prompts and improvements
         adv_prompt_list = [attack["prompt"] for attack in extracted_attack_list]
         improv_list = [attack["improvement"] for attack in extracted_attack_list]
-        print("adv_prompt_list: ")
-        print(adv_prompt_list)
-        print("improv_list: ")
-        print(improv_list)
+
         memory_after = memory_usage_psutil()
         print(f"Memory before: {memory_before} MB")
         print(f"Memory after: {memory_after} MB")
@@ -194,30 +186,8 @@ def PAIR_attack(args, base_dir = "/home/niy0569/SpeechJailbreaker"):
         # Truncate conversation to avoid context length issues
         for i, conv in enumerate(convs_list):
             conv.messages = conv.messages[-2*(args.keep_last_n):]
-
-        # Get the target_response from target_response_list with score 10
-        #target_responses_with_score_10 = [
-        #    target_response 
-        #    for target_response, score in zip(target_response_list, judge_scores) 
-        #    if score == 10
-        #]
-      
        
 
-            
-        """
-        # `process_target_response` concatenates the target response, goal, and score 
-        #   -- while adding appropriate labels to each
-        processed_response_list = [
-                process_target_response(
-                        target_response=target_response, 
-                        score=score,  # change to strongreject score
-                        goal=origin_question,
-                        target_str=args.target_str
-                    ) 
-                    for target_response, score in zip(target_response_list, judge_scores)
-            ]
-        """
         
         for attack_id, (prompt, response, score) in enumerate(
             zip(adv_prompt_list, target_response_list, judge_scores)
@@ -274,46 +244,3 @@ def PAIR_attack(args, base_dir = "/home/niy0569/SpeechJailbreaker"):
     csv_file.close()
     #logger.finish()
 
-# save_path = f'./Results/{args.target_model}/PAIR/{args.index}.csv'
-# os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-# with open(save_path, 'w', newline='', encoding='utf-8') as csv_file:
-#     writer = csv.writer(csv_file)
-#     writer.writerow([
-#         "iteration", "attack_id", "prompt", "target_response", "score", "processed_response", "timestamp"
-#     ])
-
-#     for iteration in range(1, args.n_iterations + 1):
-#         logger.info(f"\n{'='*36}\nIteration: {iteration}\n{'='*36}\n")
-
-#         if iteration > 1:
-#             processed_response_list = [
-#                 process_target_response(tr, sc, origin_question, args.target_str)
-#                 for tr, sc in zip(target_response_list, judge_scores)
-#             ]
-
-#         extracted_attack_list = attackLM.get_attack(convs_list, processed_response_list)
-#         adv_prompt_list = [attack["prompt"] for attack in extracted_attack_list]
-
-#         # Generate model responses
-#         if isinstance(target_model, LocalSpeechLLM):
-#             audio_prompts = [origin_question_audio] * len(adv_prompt_list)
-#             target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
-#         else:
-#             target_response_list = target_model.generate_batch(adv_prompt_list, max_tokens=512)
-
-#         judge_scores = judgeLM.score(adv_prompt_list, target_response_list)
-#         timestamp = time.time()
-
-#         processed_response_list = [
-#             process_target_response(resp, score, origin_question, args.target_str)
-#             for resp, score in zip(target_response_list, judge_scores)
-#         ]
-
-#         # ✅ Write one line per (prompt, response)
-#         for attack_id, (prompt, response, score, processed) in enumerate(
-#             zip(adv_prompt_list, target_response_list, judge_scores, processed_response_list)
-#         ):
-#             writer.writerow([iteration, attack_id, prompt, response, score, processed, timestamp])
-
-#         csv_file.flush()
