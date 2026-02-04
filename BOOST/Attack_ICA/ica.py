@@ -65,7 +65,7 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
     elif 'audio' in args.target_model.lower():
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
-       target_model = LocalLLM(args.target_model, system_message=system_message)
+        target_model = LocalLLM(args.target_model, system_message=system_message)
 
     
     print("Running index: ", args.prompt_index)
@@ -121,7 +121,6 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
             else:
                 target_model = LocalLLM(args.target_model, system_message=system_message)
 
-
         if args.few_shot_num == 1:
             ICL = one_shot
             prompt = ICL + origin_question
@@ -136,8 +135,14 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
         else:
             raise ValueError("The few_shot_num is not supported")
 
+        print(f"Current Full Prompt: \n {prompt} \n")
         response = target_model.generate(args.question, prompt, max_tokens=args.max_new_tokens)
+
         print(response)
+        if evaluation == "strongreject":
+            result = evaluate_generation_strongreject(origin_question, response)
+            print("strongreject score:", result.score)
+            
         if args.defence == 'guard':
             tokenizer = AutoTokenizer.from_pretrained(args.guard)
             model = AutoModelForCausalLM.from_pretrained(
@@ -171,6 +176,7 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
             if 'safe' in content.lower():
                 if evaluation == 'strongreject':
                     result = evaluate_generation_strongreject(origin_question, response)
+                    #print("strongreject score: ", result.score)
                     if result.success == True:
                         print("Success!")
                     writer.writerow([response, result.score])
@@ -186,6 +192,7 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
             else:
                 if evaluation == 'strongreject':
                     result = evaluate_generation_strongreject(origin_question, response)
+                    #print("strongreject score: ", result.score)
                     if result.success == True:
                         print("Success!")
                     writer.writerow([response, 0])

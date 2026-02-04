@@ -60,7 +60,6 @@ def JBC_attack(args, base_dir = "/projects/e33046/AABench"):
         
 
 
-
     target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
 
 

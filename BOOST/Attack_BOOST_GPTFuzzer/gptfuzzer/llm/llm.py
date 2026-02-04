@@ -438,8 +438,11 @@ class LocalSpeechLLM(LLM):
         inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
         inputs = {k: v.to("cuda") for k, v in inputs.items()}
        
-        generate_ids = self.model.generate(**inputs, max_length=1024)
+        #generate_ids = self.model.generate(**inputs, max_length=1024)
+        generate_ids = self.model.generate(**inputs, max_new_tokens=256)
         generate_ids = generate_ids[:, inputs['input_ids'].size(1):]
+
+        print("GENERATION CONTEXXXXXTTTTTTTTTTTTTT generation_config.max_length =", self.model.generation_config.max_length) 
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         return response
@@ -486,7 +489,8 @@ class LocalSpeechLLM(LLM):
         # inputs = {k: v.to("cuda") for k, v in inputs.items() if isinstance(v, torch.Tensor)}
         # inputs.input_ids = inputs.input_ids.to("cuda")
 
-        generate_ids = self.model.generate(**inputs, max_length=1024)
+        #generate_ids = self.model.generate(**inputs, max_length=1024)
+        generate_ids = self.model.generate(**inputs, max_new_tokens=256)
         generate_ids = generate_ids[:, inputs.input_ids.size(1):]
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
