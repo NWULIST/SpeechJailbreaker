@@ -10,12 +10,7 @@ from typing import NamedTuple
 
 import common
 
-try:
-    from strongreject.strongreject_evaluator import autograde_response
-    STRONGREJECT_AVAILABLE = True
-except ImportError:
-    STRONGREJECT_AVAILABLE = False
-    print("Warning: strongreject not available. Install it to use strongreject evaluation.")
+z
 
 def evaluate_generation_strongreject(question, generation, target):
     """

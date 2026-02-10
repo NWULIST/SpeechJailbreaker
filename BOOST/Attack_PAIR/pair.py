@@ -114,7 +114,9 @@ def PAIR_attack(args, base_dir="/projects/e33046/AABench"):
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model, args.gemini_key)
     elif 'audio' in args.target_model.lower() or 'gemma' in args.target_model.lower():
+        print("creating audio model")
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+        print("done creating audio model")
     else:
         target_model = LocalLLM(args.target_model, system_message=system_message)
     
@@ -194,7 +196,7 @@ def PAIR_attack(args, base_dir="/projects/e33046/AABench"):
                 for iteration in range(0, args.n_iterations + 1):
                     print(f"""\n{'='*36}\nIteration: {iteration}\n{'='*36}\n""")
                     
-                    if iteration > 1:
+                    if iteration > 0:
                         processed_response_list = [
                             process_target_response(target_response, score, origin_question, args.target_str) 
                             for target_response, score in zip(target_response_list, judge_scores)

@@ -4,7 +4,7 @@ export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
-PYTHON_SCRIPT="./Experiments/gcg_exp.py"
+PYTHON_SCRIPT="./Experiments/pgd_exp.py"
 MODEL_PATH="google/gemma-7b-it"
 EVALUATION="default"
 RUN_INDEX=2

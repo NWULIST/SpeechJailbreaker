@@ -105,7 +105,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_iterations",
         type=int,
-        default=10,
+        default=3,
         help="Number of iterations to run the attack. For our experiments, we use 3."
     )
     parser.add_argument( 

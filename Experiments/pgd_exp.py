@@ -6,7 +6,7 @@ openai_key = os.getenv('OPENAI_API_KEY')
 
 # Add the path to the BOOST folder to sys.path
 sys.path.append(os.path.abspath('../BOOST'))
-from BOOST.Attack_GCG.run_gcg import gcg_attack
+from BOOST.Attack_PGD.run_pgd import pgd_attack
 import argparse
 import random
 import numpy as np
