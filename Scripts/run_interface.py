@@ -3,9 +3,11 @@ import argparse
 import subprocess
 import os
 import sys
+import os
+os.environ["OPENAI_API_KEY"] = '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'
 
 ATTACK_TO_SCRIPT = {
-    'gcg': 'run_GCG.sh',
+    'pgd': 'run_PGD.sh',
     'fuzzer': 'run_GPTFuzzer.sh',
     'ica': 'run_ICA.sh',
     'sure': 'run_SURE.sh',

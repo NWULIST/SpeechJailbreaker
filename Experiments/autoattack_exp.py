@@ -15,7 +15,7 @@ import argparse
 import random
 import numpy as np
 import torch
-from BOOST.Attack_Autoattack.autoattack_wrapper import autoattack_attack
+from BOOST.Attack_auto.auto import auto_attack
 from BOOST.utils.constants import claude_key, gemini_key
 
 
@@ -62,12 +62,16 @@ if __name__ == "__main__":
                         help='The maximum number of queries')
     parser.add_argument('--max_jailbreak', type=int, default=1,
                         help='The maximum jailbreak number')
+    parser.add_argument('--max_new_tokens', type=int, default=512,
+                        help='Max new tokens for generation')
 
     # Experiment parameters
     parser.add_argument("--run_index", type=int, default=0,
                         help="Run index for organizing results")
     parser.add_argument("--seed", type=int, default=42,
                         help='Random seed for reproducibility')
+    parser.add_argument("--early_stop", action="store_true",
+                        help="Stop early if success")
 
     # Dataset parameters
     parser.add_argument('--harmful_dataset', type=str, default='Dataset/harmful.csv',
@@ -91,6 +95,9 @@ if __name__ == "__main__":
     args.openai_key = openai_key
     args.claude_key = claude_key
     args.gemini_key = gemini_key
+    
+    # Prepare args for auto_attack
+    args.indices_list = [args.index]
 
     print("=" * 60)
     print("AutoAttack Experiment Configuration")
@@ -110,4 +117,4 @@ if __name__ == "__main__":
     print()
 
     # Run attack
-    autoattack_attack(args)
+    auto_attack(args, base_dir=args.base_dir)

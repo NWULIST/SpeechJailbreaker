@@ -21,6 +21,8 @@ NORM="Linf"
 EPS="0.3"
 VERSION="standard"
 DEVICE="cuda"
+MAX_NEW_TOKENS=512
+BASE_DIR="/projects/e33046/AABench"
 
 # GPU
 GPU_MEMORY=40000
@@ -89,6 +91,14 @@ while [[ $# -gt 0 ]]; do
     #   TARGETS_DATASET="$2"
     #   shift 2
     #   ;;
+    --max_new_tokens)
+      MAX_NEW_TOKENS="$2"
+      shift 2
+      ;;
+    --base_dir)
+      BASE_DIR="$2"
+      shift 2
+      ;;
     *)
       shift
       ;;
@@ -110,6 +120,8 @@ echo "Version: $VERSION"
 echo "Number of Tasks: $NUM_TASKS"
 echo "Log Path: $LOG_PATH"
 echo "GPU Memory Required: $GPU_MEMORY MB"
+echo "Max New Tokens: $MAX_NEW_TOKENS"
+echo "Base Dir: $BASE_DIR"
 echo "=========================================="
 echo ""
 
@@ -158,10 +170,10 @@ for index in $(seq 0 $NUM_TASKS); do
     # Run the Python script on the free GPU
     (
         echo "[TASK $index] Task started on GPU $FREE_GPU at $(date '+%Y-%m-%d %H:%M:%S')"
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --defence $defence --target_model $MODEL_PATH --norm $NORM --guard $guard --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --defence $defence --target_model $MODEL_PATH --norm $NORM --guard $guard --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION --max_new_tokens $MAX_NEW_TOKENS --base_dir $BASE_DIR > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
 
         echo "[TASK $index] Loading model and starting AutoAttack..."
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index --defence $defence --target_model $MODEL_PATH --norm $NORM --guard $guard --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION 2>&1 | tee "${LOG_PATH}/${index}.log"
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index --defence $defence --target_model $MODEL_PATH --norm $NORM --guard $guard --eps $EPS --version $VERSION --device $DEVICE --run_index $RUN_INDEX --evaluation $EVALUATION --max_new_tokens $MAX_NEW_TOKENS --base_dir $BASE_DIR 2>&1 | tee "${LOG_PATH}/${index}.log"
 
         echo "[TASK $index] Task finished on GPU $FREE_GPU at $(date '+%Y-%m-%d %H:%M:%S')"
     ) 

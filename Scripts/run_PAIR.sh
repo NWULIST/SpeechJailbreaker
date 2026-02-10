@@ -1,108 +1,236 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
+
+###########################################
+# MODULES & ENV
+###########################################
 module load cuda/cuda-12.1.0-openmpi-4.1.4
 export HF_HOME="/projects/e33046/.cache/"
-# Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-PYTHON_SCRIPT="./Experiments/pair_exp.py"
-MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
-EVALUATION="default"
-RUN_INDEX=2
-ADD_EOS=False
-EOS_NUM="10"
-defence = ""
-guard=""
-# GPU
-GPU_MEMORY=40000
-NUM_GPU_SEARCH=7
-NUM_TASKS=1 # Number of tasks to run in parallel
 
-# Dataset paths
-HARMFUL_DATASET="Dataset/harmful.csv"
-TARGETS_DATASET="Dataset/harmful_targets.csv"
-
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    --model_path)
-      MODEL_PATH="$2"
-      shift 2
-      ;;
-    --guard)
-      guard="$2"
-      shift 2
-      ;;
-    --evaluation)
-      EVALUATION="$2"
-      shift 2
-      ;;
-    --gpu_memory)
-      GPU_MEMORY="$2"
-      shift 2
-      ;;
-    --defence)
-      defence="$2"
-      shift 2
-      ;;
-    --num_gpu_search)
-      NUM_GPU_SEARCH="$2"
-      shift 2
-      ;;
-    --num_tasks)
-      NUM_TASKS="$2"
-      shift 2
-      ;;
-    *)
-      shift
-      ;;
-  esac
-done
-
-LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
-# Create the log directory if it does not exist
-mkdir -p "$LOG_PATH"
-
-# Conditional flag for EARLY_STOP
-EARLY_STOP_FLAG=""
-if [ "$EARLY_STOP" = "True" ]; then
-    EARLY_STOP_FLAG="--early_stop"
+# Load OpenAI API key from .env file
+if [ -f ".env" ]; then
+    export $(grep -v '^#' .env | xargs)
+    echo "Loaded environment variables from .env"
+elif [ -f "/projects/e33046/AttackBench/.env" ]; then
+    export $(grep -v '^#' /projects/e33046/AttackBench/.env | xargs)
+    echo "Loaded environment variables from /projects/e33046/AttackBench/.env"
+else
+    echo "WARNING: .env file not found!"
 fi
 
-# Function to find the first available GPU
-find_free_gpu() {
-    # {0..$NUM_GPU_SEARCH}
-    for i in $(seq 0 $NUM_GPU_SEARCH); do
-        free_mem=$(nvidia-smi -i $i --query-gpu=memory.free --format=csv,noheader,nounits | awk '{print $1}')
-        if [[ "$free_mem" =~ ^[0-9]+$ ]] && [ "$free_mem" -ge $GPU_MEMORY ]; then
-            echo $i
-            return
-        fi
-    done
+# Verify OpenAI API key is set
+if [ -z "$OPENAI_API_KEY" ]; then
+    echo "ERROR: OPENAI_API_KEY is not set!"
+    echo "Please create a .env file with: OPENAI_API_KEY=your-key-here"
+    exit 1
+else
+    echo "OpenAI API key loaded: ${OPENAI_API_KEY:0:15}..."
+fi
 
-    echo "-1" # Return -1 if no suitable GPU is found
+###########################################
+# CONFIG
+###########################################
+PYTHON_SCRIPT="./Experiments/pair_exp.py"
+MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"  # Or use Qwen/Qwen2-Audio-7B-Instruct
+EVALUATION="strongreject"
+RUN_INDEX=2
+defence=""
+guard=""
+GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
+NUM_GPU_SEARCH=7               # Highest GPU index to search
+NUM_TASKS=400                  # Total tasks to run
+DATASET_SIZE=4724              # Total size of your dataset
+RANDOM_SEED=42                 # Set to empty string for different samples each run
+BATCH_SIZE=200                  # Process 10 items per GPU (adjust based on memory)
+MAX_PARALLEL=2               # Maximum batches to run simultaneously
+RETRY_DELAY=5
+LOCK_DIR="/tmp/gpu_locks"
+LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
+RESULTS_CSV="${LOG_PATH}/results.csv"
+INDICES_FILE="${LOG_PATH}/selected_indices.txt"
+
+mkdir -p "$LOG_PATH"
+mkdir -p "$LOCK_DIR"
+
+###########################################
+# CLEANUP ON INTERRUPT
+###########################################
+PIDS=()
+cleanup() {
+    echo "Keyboard interrupt detected. Cleaning up..."
+    if [[ ${#PIDS[@]} -gt 0 ]]; then
+        echo "Killing background jobs..."
+        kill -9 "${PIDS[@]}" 2>/dev/null || true
+    fi
+    echo "Removing GPU lock files..."
+    rm -f "$LOCK_DIR"/gpu_*.lock
+    exit 1
+}
+trap cleanup SIGINT SIGTERM
+
+###########################################
+# GPU FUNCTIONS
+###########################################
+get_available_gpus() {
+    seq 0 $NUM_GPU_SEARCH
 }
 
-# Start the jobs with GPU assignment
-for index in $(seq 0 $NUM_TASKS); do
+gpu_has_memory() {
+    local gpu=$1
+    local free_mem
+    free_mem=$(nvidia-smi -i $gpu --query-gpu=memory.free --format=csv,noheader,nounits)
+    [[ "$free_mem" -ge "$GPU_MEMORY" ]]
+}
 
-    FREE_GPU=-1
+lock_gpu() {
+    local gpu=$1
+    local lockfile="$LOCK_DIR/gpu_${gpu}.lock"
+    ( set -o noclobber; echo "$$" > "$lockfile") 2>/dev/null
+}
 
-    # Keep looping until a free GPU is found
-    while [ $FREE_GPU -eq -1 ]; do
-        FREE_GPU=$(find_free_gpu)
-        if [ $FREE_GPU -eq -1 ]; then
-            sleep 5 # Wait for 5 seconds before trying to find a free GPU again
-        fi
+unlock_gpu() {
+    local gpu=$1
+    rm -f "$LOCK_DIR/gpu_${gpu}.lock"
+}
+
+###########################################
+# RUN BATCH JOB
+###########################################
+run_batch_job_with_indices() {
+    local indices_str=$1
+    local batch_id=$2
+    
+    echo "Batch $batch_id (indices: $indices_str): waiting for a free GPU..."
+    local gpu=-1
+
+    while true; do
+        for g in $(get_available_gpus); do
+            if lock_gpu "$g"; then
+                if gpu_has_memory "$g"; then
+                    gpu=$g
+                    break
+                else
+                    unlock_gpu "$g"
+                fi
+            fi
+        done
+        [[ $gpu -ge 0 ]] && break
+        echo "Batch $batch_id: no GPU available, retrying in $RETRY_DELAY seconds..."
+        sleep $RETRY_DELAY
     done
 
-    (
-        echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index > "${LOG_PATH}/${index}.log" 2>&1
-        echo "Task $index on GPU $FREE_GPU finished."
-    ) 
+    echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str)..."
+    local log_file="${LOG_PATH}/batch_${batch_id}.log"
 
-    # Wait for 30 seconds to give the GPU some time to allocate memory
-    sleep 30
+    ###########################################
+    # Run batch processing with specific indices
+    ###########################################
+    CUDA_VISIBLE_DEVICES=$gpu python -u "$PYTHON_SCRIPT" \
+        --target_model "$MODEL_PATH" \
+        --defence "$defence" \
+        --evaluation "$EVALUATION" \
+        --guard "$guard" \
+        --indices "$indices_str" \
+        --n_iterations 10 \
+        --n_streams 3 \
+        --keep_last_n 2 \
+        &> "$log_file"
+
+    # Extract results for each item in the batch
+    while IFS= read -r line; do
+        if [[ $line =~ ^RESULT:([0-9]+),([0-9.]+),([0-9]+)$ ]]; then
+            idx="${BASH_REMATCH[1]}"
+            score="${BASH_REMATCH[2]}"
+            count="${BASH_REMATCH[3]}"
+            echo "$idx,$score,$count" >> "$RESULTS_CSV"
+        fi
+    done < <(grep '^RESULT:' "$log_file")
+
+    echo "Batch $batch_id finished, unlocking GPU $gpu"
+    unlock_gpu "$gpu"
+}
+
+###########################################
+# MAIN
+###########################################
+if [[ "$NUM_TASKS" -le 0 ]]; then
+    echo "NUM_TASKS <= 0. Nothing to run."
+    exit 0
+fi
+
+if [[ "$NUM_TASKS" -gt "$DATASET_SIZE" ]]; then
+    echo "ERROR: NUM_TASKS ($NUM_TASKS) exceeds DATASET_SIZE ($DATASET_SIZE)"
+    exit 1
+fi
+
+# Write CSV header
+echo "job_index,total_score,total_count" > "$RESULTS_CSV"
+
+###########################################
+# GENERATE RANDOM INDICES
+###########################################
+echo "Generating $NUM_TASKS random indices from dataset of size $DATASET_SIZE..."
+
+if [[ -n "$RANDOM_SEED" ]]; then
+    # Use Python to generate random indices with a seed for reproducibility
+    python3 -c "
+import random
+random.seed($RANDOM_SEED)
+indices = random.sample(range($DATASET_SIZE), $NUM_TASKS)
+for idx in indices:
+    print(idx)
+" > "$INDICES_FILE"
+    echo "Using random seed: $RANDOM_SEED (results will be reproducible)"
+else
+    # Generate random indices without seed (different each run)
+    python3 -c "
+import random
+indices = random.sample(range($DATASET_SIZE), $NUM_TASKS)
+for idx in indices:
+    print(idx)
+" > "$INDICES_FILE"
+    echo "No random seed set (results will vary each run)"
+fi
+
+echo "Selected indices saved to: $INDICES_FILE"
+
+# Read indices into array
+mapfile -t SELECTED_INDICES < "$INDICES_FILE"
+
+###########################################
+# CREATE BATCHES FROM RANDOM INDICES
+###########################################
+num_batches=$(( (NUM_TASKS + BATCH_SIZE - 1) / BATCH_SIZE ))
+echo "Launching $num_batches batches (batch size: $BATCH_SIZE) with maximum $MAX_PARALLEL in parallel..."
+
+batch_id=1
+for ((i=0; i<NUM_TASKS; i+=BATCH_SIZE)); do
+    # Get slice of indices for this batch
+    batch_indices=("${SELECTED_INDICES[@]:i:BATCH_SIZE}")
+    
+    # Convert array to comma-separated string
+    indices_str=$(IFS=,; echo "${batch_indices[*]}")
+    
+    echo "Batch $batch_id: processing indices [$indices_str]"
+    
+    run_batch_job_with_indices "$indices_str" $batch_id &
+    PIDS+=($!)
+    batch_id=$((batch_id + 1))
+
+    # Wait if the number of running batches reaches MAX_PARALLEL
+    while [[ $(jobs -rp | wc -l) -ge $MAX_PARALLEL ]]; do
+        sleep 1
+    done
 done
 
-# Wait for all background jobs to finish
+# Wait for all remaining batches
 wait
+
+# Compute total ASR
+total_score=$(awk -F, 'NR>1 {sum+=$2} END {print sum}' "$RESULTS_CSV")
+total_count=$(awk -F, 'NR>1 {sum+=$3} END {print sum}' "$RESULTS_CSV")
+total_ASR=$(awk -v s="$total_score" -v c="$total_count" 'BEGIN {print (c>0 ? s/c : 0)}')
+
+echo "TOTAL_ASR,$total_ASR" >> "$RESULTS_CSV"
+echo "All batches completed. TOTAL_ASR=$total_ASR"
