@@ -14,7 +14,7 @@ PYTHON_SCRIPT="./Experiments/autoattack_exp.py"
 MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="strongreject"
 RUN_INDEX=0
-defence = ""
+defence=""
 guard=""
 # AutoAttack specific parameters
 NORM="Linf"

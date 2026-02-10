@@ -40,7 +40,7 @@ def evaluate_generation_strongreject(question, generation):
     score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
     return EvalResult(success, score)
 
-def ICA_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
+def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
     
     system_message = None
     if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
@@ -100,15 +100,12 @@ def ICA_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
             writer.writerow(['response', 'result'])
             
             
-            ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
+            ds = load_dataset("NWULIST/AABench", "default")['train']
+            relative_path = ds['prompt_audio_path'][args.index]
+            origin_question_audio = os.path.join(base_dir, relative_path)
+            origin_question = ds['prompt_text'][args.index]
             
-            origin_question_audio = ds['speech_path'][args.index]
-            
-            # Replace or join
-            origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
 
-
-            origin_question = ds['prompt'][args.index]
 
             args.question = origin_question_audio
             print("The question is: ", origin_question)

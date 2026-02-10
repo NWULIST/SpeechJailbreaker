@@ -36,13 +36,14 @@ class EvalResult(NamedTuple):
     score: float
 
 def evaluate_generation_strongreject(question, generation, target):
-    """
-    Wrapper for StrongReject evaluation with proper error handling
-    """
-    try:
-        # Ensure API key is in environment before calling
-        if not os.getenv('OPENAI_API_KEY'):
-            raise ValueError("OPENAI_API_KEY not set in environment")
+    result = autograde_response(question, generation)
+    success = result.score_zero_to_one is not None and result.score_zero_to_one > 0
+    score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
+    return EvalResult(success, score)
+
+def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
+    memory_before = memory_usage_psutil()
+
         
         result = autograde_response(question, generation)
         success = result.score_zero_to_one is not None and result.score_zero_to_one > 0
@@ -62,19 +63,13 @@ def evaluate_generation_strongreject(question, generation, target):
         
         return EvalResult(False, 0.0)
 
-def PAIR_attack(args, base_dir="/projects/e33046/AABench"):
-    """
-    Process a batch of indices with a single model instance.
-    Model is loaded once and reused for all items in the batch.
-    """
-    # Ensure OpenAI API key is set for StrongReject evaluator
-    env_file = find_dotenv()
-    if env_file:
-        print(f"Found .env file at: {env_file}")
-        load_dotenv(env_file)
-    else:
-        print("WARNING: .env file not found, trying to load from current directory")
-        load_dotenv()
+    if getattr(args, 'store_folder', None):
+        os.makedirs(args.store_folder, exist_ok=True)
+
+    ds = load_dataset("NWULIST/AABench", "default")['train']  
+    relative_path = ds['prompt_audio_path'][args.index]
+    origin_question_audio = os.path.join(base_dir, relative_path)
+    origin_question = ds['prompt_text'][args.index]
 
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
     if not OPENAI_API_KEY:
@@ -85,7 +80,7 @@ def PAIR_attack(args, base_dir="/projects/e33046/AABench"):
     
     print(f"Loading dataset...")
     ds = load_dataset("NWULIST/AABench", "default")['train']
-    
+    z
     # Get list of indices to process
     indices_to_process = args.indices_list
     print(f"Processing {len(indices_to_process)} indices: {indices_to_process}")

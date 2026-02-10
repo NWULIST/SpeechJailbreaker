@@ -36,17 +36,17 @@ def evaluate_generation_strongreject(question, generation, target):
     score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
     return EvalResult(success, score)
 
-def fuzzer_attack(args, base_dir = "/projects/e33046/AudioJailbreak"):
+def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     initial_seed = pd.read_csv(args.seed_path)['text'].tolist()
 
     openai_model = OpenAILLM(args.model_path, args.openai_key)
     # target_model = LocalLLM(args.target_model) 
 
     # Login using e.g. `huggingface-cli login` to access this dataset
-    ds = load_dataset("MBZUAI/AudioJailbreak", "Origin")['origin']
-    origin_question_audio = ds['speech_path'][args.index]
-    origin_question_audio = origin_question_audio.replace("./audio", os.path.join(base_dir, "audio"))
-    origin_question = ds['prompt'][args.index]
+    ds = load_dataset("NWULIST/AABench", "default")['train']
+    relative_path = ds['prompt_audio_path'][args.index]
+    origin_question_audio = os.path.join(base_dir, relative_path)
+    origin_question = ds['prompt_text'][args.index]
 
     system_message = None
     if args.defence != '' and args.defence != 'guard' and args.defence != "None":
