@@ -176,52 +176,60 @@ class GPTFuzzer:
     def evaluate(self, prompt_nodes: 'list[PromptNode]'):
         messages = []
         valid_prompt_indices = []
-    
-        # Prepare messages for batch generation and track valid prompts
+
+        # build messages
+        forA1 = isinstance(self.target, LocalLLM)  # just a harmless hint; optional
         for i, prompt_node in enumerate(prompt_nodes):
-            if 'Qwen2-Audio' in self.target.model_path:
+            if 'Qwen2-Audio' in getattr(self.target, "model_path", ""):
                 message = synthesis_message(self.questions_txt[0], "<|audio_eos|>" + prompt_node.prompt)
             else:
                 message = synthesis_message(self.questions_txt[0], prompt_node.prompt)
+
             if message is not None:
                 messages.append(message)
-                
                 valid_prompt_indices.append(i)
-        if self.defence == 'guard':
+
+        # check if guard is enabled?
+        guard_enabled = (self.defence == 'guard' and self.guard)
+
+        if guard_enabled:
             tokenizer = AutoTokenizer.from_pretrained(self.guard)
             model = AutoModelForCausalLM.from_pretrained(
                 self.guard,
                 torch_dtype="auto",
                 device_map="auto"
             )
-        # Generate responses in batch
+
+        # generate responses
         if messages:
             print(messages)
-            responses = self.target.generate_batch(self.questions,messages)
+            responses = self.target.generate_batch(self.questions, messages)
             logging.info(self.predictor)
-            # Assign responses and results to valid prompt nodes
+
             for i, response in zip(valid_prompt_indices, responses):
                 prompt_nodes[i].response = [response]
-                messages = [
+
+                # if we are NOT using guard, just evaluate directly
+                if not guard_enabled:
+                    if self.evaluation != 'strongreject':
+                        prompt_nodes[i].results = self.predictor.predict([response], self.questions_txt[0])
+                    else:
+                        prompt_nodes[i].results = self.predictor([response], self.questions_txt[0], None)
+                    continue
+
+                # guard path: classify safe/unsafe first
+                guard_msgs = [
                     {"role": "user", "content": self.questions_txt[0]},
                     {"role": "assistant", "content": response},
                 ]
 
-                text = tokenizer.apply_chat_template(
-                    messages,
-                    tokenize=False
-                )
+                text = tokenizer.apply_chat_template(guard_msgs, tokenize=False)
                 model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
 
-                # conduct text completion
-                generated_ids = model.generate(
-                    **model_inputs,
-                    max_new_tokens=128
-                )
-
-                output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
-
+                generated_ids = model.generate(**model_inputs, max_new_tokens=128)
+                output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
                 content = tokenizer.decode(output_ids, skip_special_tokens=True)
+
                 if 'safe' in content.lower():
                     if self.evaluation != 'strongreject':
                         prompt_nodes[i].results = self.predictor.predict([response], self.questions_txt[0])
@@ -229,19 +237,20 @@ class GPTFuzzer:
                         prompt_nodes[i].results = self.predictor([response], self.questions_txt[0], None)
                         print(f"Prompt: {prompt_nodes[i].prompt}, Response: {response}, Results: {prompt_nodes[i].results}")
                 else:
-                    if isinstance(prompt_nodes[i].results, list) and len(prompt_nodes[i].results) >= 1:
-                        for item in prompt_nodes[i].results:
-                            item.sucess = False
+                    # mark failed safely
+                    if self.evaluation == 'strongreject':
+                        from collections import namedtuple
+                        EvalResult = namedtuple("EvalResult", ["success", "score"])
+                        prompt_nodes[i].results = EvalResult(False, 0.0)
                     else:
-                        self.results.success = False
+                        prompt_nodes[i].results = []
 
-            # Assign empty responses and results to invalid prompt nodes
-            for i in range(len(prompt_nodes)):
-                if i not in valid_prompt_indices:
-                    prompt_nodes[i].response = []
-                    prompt_nodes[i].results = []
+            # fill invalid prompts
+            for j in range(len(prompt_nodes)):
+                if j not in valid_prompt_indices:
+                    prompt_nodes[j].response = []
+                    prompt_nodes[j].results = []
         else:
-            # If all prompts are invalid, set empty responses and results
             for prompt_node in prompt_nodes:
                 prompt_node.response = []
                 prompt_node.results = []

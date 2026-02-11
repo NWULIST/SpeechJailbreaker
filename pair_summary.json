@@ -1,0 +1,13 @@
+{
+  "total_asr": 0.21535893155258765,
+  "sample_success_rate": 0.8445945945945946,
+  "num_samples": 148,
+  "samples_with_success": 125,
+  "total_attacks": 3594,
+  "successful_attacks": 774.0,
+  "mean_asr_per_sample": 0.2654995587070017,
+  "median_asr_per_sample": 0.17857142857142858,
+  "min_asr": 0.0,
+  "max_asr": 1.0,
+  "std_asr": 0.26597177747146306
+}

@@ -291,9 +291,6 @@ def get_model_path_and_template(model_name):
         "gemini-pro": {
             "path": "gemini-pro",
             "template": "gemini-pro"
-<<<<<<< HEAD
-        }
-=======
         },
         "Qwen/Qwen2-7B-Instruct": {
             "path": "Qwen/Qwen2-7B-Instruct",
@@ -315,7 +312,6 @@ def get_model_path_and_template(model_name):
         "path": "google/gemma-3n-E2B-it",
         "template": "google/gemma-3n-E2B-it"
         },
->>>>>>> bbfe546259d3f0e726f6011697cdd33735a6d336
     }
     path, template = full_model_dict[model_name]["path"], full_model_dict[model_name]["template"]
     return path, template

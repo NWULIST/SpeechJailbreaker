@@ -86,13 +86,48 @@ AttackBench/
 ## Installation
 
 ```bash
+# ssh to Quest
+ssh -X <netid>@login.quest.northwestern.edu
+
 # Clone the repository
 git clone https://github.com/robinzixuan/AttackBench.git
-cd AttackBench
 
-# Install dependencies (inferred from imports)
+# (Optional) If you have not previously set up an ssh key for quest,
+# Follow this documentation (https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
+
+# (Optional) If you have not already installed conda
+# Check your Linux architecture
+uname -s
+uname -m
+
+# (Optional) If you see Linux, x86_64, install Miniconda into $HOME/miniconda3 (on Quest)
+cd "$HOME"
+curl -LO https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh -b -p "$HOME/miniconda3"
+
+# (Optional) If you see Linux, aarch64, install Miniconda into $HOME/miniconda3
+cd "$HOME"
+curl -LO https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh
+bash Miniconda3-latest-Linux-aarch64.sh -b -p "$HOME/miniconda3"
+
+# (Optional) Put conda onto your PATH and initialize bash
+echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+conda --version
+conda init bash
+exec bash -l
+
+# Request resources
+srun --account=<account-id> --partition=gengpu --gres=gpu:1 --cpus-per-task=4 --mem=32G --time=02:00:00 --pty bash -l
+
+# Install dependencies
 conda env create -f environment.yml
-conda activate jailbreak
+
+# Activate the environment
+conda activate xllm_env
+
+# Run the attack
+
 ```
 
 ## Usage

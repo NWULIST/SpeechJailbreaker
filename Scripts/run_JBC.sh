@@ -97,6 +97,7 @@ done
 
 LOG_PATH="Logs/${MODEL_PATH}/JBC-${RUN_INDEX}"
 RESULTS_CSV="${LOG_PATH}/results.csv"
+INDICES_FILE="${LOG_PATH}/selected_indices.txt"
 
 mkdir -p "$LOG_PATH"
 mkdir -p "$LOCK_DIR"
@@ -153,11 +154,13 @@ unlock_gpu() {
 }
 
 ###########################################
-# RUN JOB
+# RUN BATCH JOB
 ###########################################
-run_job() {
-    local idx=$1
-    echo "Job $idx: waiting for a free GPU..."
+run_batch_job_with_indices() {
+    local indices_str=$1
+    local batch_id=$2
+    
+    echo "Batch $batch_id (indices: $indices_str): waiting for a free GPU..."
     local gpu=-1
 
     while true; do
@@ -172,34 +175,36 @@ run_job() {
             fi
         done
         [[ $gpu -ge 0 ]] && break
-        echo "Job $idx: no GPU available, retrying in $RETRY_DELAY seconds..."
+        echo "Batch $batch_id: no GPU available, retrying in $RETRY_DELAY seconds..."
         sleep $RETRY_DELAY
     done
 
-    echo "Job $idx: running on GPU $gpu..."
-    local log_file="${LOG_PATH}/job_${idx}.log"
+    echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str)..."
+    local log_file="${LOG_PATH}/batch_${batch_id}.log"
 
     ###########################################
-    # Capture all output, then extract RESULT from log
+    # Run batch processing with specific indices
     ###########################################
     CUDA_VISIBLE_DEVICES=$gpu python -u "$PYTHON_SCRIPT" \
-    --target_model "$MODEL_PATH" \
-    --defence "$defence" \
-    --evaluation "$EVALUATION" \
-    --guard "$guard" \
-    --index "$idx" \
-    &> "$log_file"
+        --target_model "$MODEL_PATH" \
+        --defence "$defence" \
+        --evaluation "$EVALUATION" \
+        --guard "$guard" \
+        --indices "$indices_str" \
+        --max-new-tokens 256 \
+        &> "$log_file"
 
-    # Extract the most recent RESULT line
-    result=$(grep '^RESULT:' "$log_file" | tail -1)
+    # Extract results for each item in the batch
+    while IFS= read -r line; do
+        if [[ $line =~ ^RESULT:([0-9]+),([0-9.]+),([0-9]+)$ ]]; then
+            idx="${BASH_REMATCH[1]}"
+            score="${BASH_REMATCH[2]}"
+            count="${BASH_REMATCH[3]}"
+            echo "$idx,$score,$count" >> "$RESULTS_CSV"
+        fi
+    done < <(grep '^RESULT:' "$log_file")
 
-    # Parse result
-    total_score=$(echo "$result" | cut -d':' -f2 | cut -d',' -f1)
-    total_count=$(echo "$result" | cut -d':' -f2 | cut -d',' -f2)
-
-    echo "$idx,$total_score,$total_count" >> "$RESULTS_CSV"
-
-    echo "Job $idx finished, unlocking GPU $gpu"
+    echo "Batch $batch_id finished, unlocking GPU $gpu"
     unlock_gpu "$gpu"
 }
 
@@ -211,22 +216,72 @@ if [[ "$NUM_TASKS" -le 0 ]]; then
     exit 0
 fi
 
+if [[ "$NUM_TASKS" -gt "$DATASET_SIZE" ]]; then
+    echo "ERROR: NUM_TASKS ($NUM_TASKS) exceeds DATASET_SIZE ($DATASET_SIZE)"
+    exit 1
+fi
+
 # Write CSV header
 echo "job_index,total_score,total_count" > "$RESULTS_CSV"
 
-echo "Launching $NUM_TASKS jobs with maximum $MAX_PARALLEL in parallel..."
+###########################################
+# GENERATE RANDOM INDICES
+###########################################
+echo "Generating $NUM_TASKS random indices from dataset of size $DATASET_SIZE..."
 
-for idx in $(seq 1 $NUM_TASKS); do
-    run_job $idx &
+if [[ -n "$RANDOM_SEED" ]]; then
+    # Use Python to generate random indices with a seed for reproducibility
+    python3 -c "
+import random
+random.seed($RANDOM_SEED)
+indices = random.sample(range($DATASET_SIZE), $NUM_TASKS)
+for idx in indices:
+    print(idx)
+" > "$INDICES_FILE"
+    echo "Using random seed: $RANDOM_SEED (results will be reproducible)"
+else
+    # Generate random indices without seed (different each run)
+    python3 -c "
+import random
+indices = random.sample(range($DATASET_SIZE), $NUM_TASKS)
+for idx in indices:
+    print(idx)
+" > "$INDICES_FILE"
+    echo "No random seed set (results will vary each run)"
+fi
+
+echo "Selected indices saved to: $INDICES_FILE"
+
+# Read indices into array
+mapfile -t SELECTED_INDICES < "$INDICES_FILE"
+
+###########################################
+# CREATE BATCHES FROM RANDOM INDICES
+###########################################
+num_batches=$(( (NUM_TASKS + BATCH_SIZE - 1) / BATCH_SIZE ))
+echo "Launching $num_batches batches (batch size: $BATCH_SIZE) with maximum $MAX_PARALLEL in parallel..."
+
+batch_id=1
+for ((i=0; i<NUM_TASKS; i+=BATCH_SIZE)); do
+    # Get slice of indices for this batch
+    batch_indices=("${SELECTED_INDICES[@]:i:BATCH_SIZE}")
+    
+    # Convert array to comma-separated string
+    indices_str=$(IFS=,; echo "${batch_indices[*]}")
+    
+    echo "Batch $batch_id: processing indices [$indices_str]"
+    
+    run_batch_job_with_indices "$indices_str" $batch_id &
     PIDS+=($!)
+    batch_id=$((batch_id + 1))
 
-    # Wait if the number of running jobs reaches MAX_PARALLEL
+    # Wait if the number of running batches reaches MAX_PARALLEL
     while [[ $(jobs -rp | wc -l) -ge $MAX_PARALLEL ]]; do
         sleep 1
     done
 done
 
-# Wait for all remaining jobs
+# Wait for all remaining batches
 wait
 
 # Compute total ASR
@@ -235,4 +290,4 @@ total_count=$(awk -F, 'NR>1 {sum+=$3} END {print sum}' "$RESULTS_CSV")
 total_ASR=$(awk -v s="$total_score" -v c="$total_count" 'BEGIN {print (c>0 ? s/c : 0)}')
 
 echo "TOTAL_ASR,$total_ASR" >> "$RESULTS_CSV"
-echo "All jobs completed. TOTAL_ASR=$total_ASR"
+echo "All batches completed. TOTAL_ASR=$total_ASR"

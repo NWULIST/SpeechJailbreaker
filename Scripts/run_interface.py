@@ -7,7 +7,7 @@ import os
 os.environ["OPENAI_API_KEY"] = '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'
 
 ATTACK_TO_SCRIPT = {
-    'gcg': 'run_GCG.sh',
+    'pgd': 'run_PGD.sh',
     'fuzzer': 'run_GPTFuzzer.sh',
     'ica': 'run_ICA.sh',
     'sure': 'run_SURE.sh',
@@ -19,12 +19,10 @@ ATTACK_TO_SCRIPT = {
     'autoattack': 'run_auto.sh',
 }
 
-
-
 def main():
     parser = argparse.ArgumentParser(description='Unified Python interface for running attack scripts.')
     parser.add_argument('--attack', required=True, default='tap', choices=ATTACK_TO_SCRIPT.keys(), help='Attack method to run')
-    parser.add_argument('--defence', required=False, default=None, help='Defence method to run')
+    parser.add_argument('--defence', required=False, default='None', help='Defence method to run')
     parser.add_argument('--model_path', required=False, default='Qwen/Qwen2-Audio-7B-Instruct', help='Model path to pass to the attack script')
     parser.add_argument('--evaluation', required=False, default='strongreject', help='Evaluation method to pass to the attack script (default or strongreject)')
     parser.add_argument('--num_tasks', type=int, default=2, help='Number of tasks to run in parallel (default: 3)')
@@ -60,4 +58,4 @@ def main():
         sys.exit(e.returncode)
 
 if __name__ == '__main__':
-    main() 
+    main()
