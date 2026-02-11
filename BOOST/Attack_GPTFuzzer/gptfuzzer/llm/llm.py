@@ -85,7 +85,7 @@ class LocalLLM(LLM):
         else:
             self.system_message = system_message
 
-    @torch.inference_mode()
+
     def create_model(self, model_path,
                      device='cuda',
                      num_gpus=1,
@@ -408,7 +408,7 @@ class LocalSpeechLLM(LLM):
         else:
             self.system_message = system_message
 
-    @torch.inference_mode()
+
     def create_model(self, model_path,
                      device='cuda',
                      num_gpus=1,

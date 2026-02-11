@@ -4,15 +4,29 @@ import pandas as pd
 import argparse
 # from BOOST.Attack_GCG.gcg import GCG
 from BOOST.Attack_PGD.LLM_Embedding_Attack.embedding_attack_toxic import EmbeddingAttack
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import csv
-try:
-    from strongreject.strongreject_evaluator import autograde_response
-    STRONGREJECT_AVAILABLE = True
-except ImportError:
-    STRONGREJECT_AVAILABLE = False
-    print("Warning: strongreject not available. Install it to use strongreject evaluation.")
+import pandas as pd
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, ClaudeLLM, GeminiLLM, LocalSpeechLLM
+import random
+random.seed(100)
+import logging
+httpx_logger: logging.Logger = logging.getLogger("httpx")
+# disable httpx logging
+httpx_logger.setLevel(logging.WARNING)
+from strongreject.strongreject_evaluator import autograde_response
+from typing import NamedTuple
+from datasets import load_dataset
+import json
 
-
+import argparse
+import psutil
+import os
+import time
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import re
 
 class EvalResult(NamedTuple):
     success: bool
@@ -28,9 +42,6 @@ def evaluate_generation_strongreject(question, generation, target):
 
 def pgd_attack(args, base_dir="/projects/e33046/AABench"):
 
-    if getattr(args, 'store_folder', None):
-        os.makedirs(args.store_folder, exist_ok=True)
-
     ds = load_dataset("NWULIST/AABench", "default")['train']  
     relative_path = ds['prompt_audio_path'][args.index]
     origin_question_audio = os.path.join(base_dir, relative_path)
@@ -40,7 +51,8 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
     target_audio = os.path.join(base_dir, target_audio)
 
     system_message = None
-    if args.defence != '' or args.defence != 'guard' and args.defence != 'None':
+
+    if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
@@ -65,7 +77,7 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
     elif 'audio' in args.target_model.lower():
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
-        target_model = LocalLLM(args.target-model, system_message=system_message)
+        target_model = LocalLLM(args.target_model, system_message=system_message)
 
     
 
@@ -99,43 +111,112 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
     
     attacker = EmbeddingAttack(args)
     
+    # Remove user's broken lines if they exist, but I cannot see them in this context easily without reading again.
+    # Actually, I will targeting the attacker.run call specifically.
+    
     # Extract model and tokenizer
     if hasattr(target_model, 'model'):
         model_obj = target_model.model
     else:
         raise ValueError("Target model must be a white-box model (expose .model) for embedding attack.")
         
-    if hasattr(target_model, 'tokenizer'):
+    tokenizer_obj = None
+    if hasattr(target_model, 'tokenizer') and target_model.tokenizer is not None:
         tokenizer_obj = target_model.tokenizer
     elif hasattr(target_model, 'processor'):
         tokenizer_obj = target_model.processor.tokenizer
-    else:
+    
+    if tokenizer_obj is None:
         raise ValueError("Could not find tokenizer in target_model.")
+
+    # Enable gradient checkpointing to save memory
+    if hasattr(model_obj, "gradient_checkpointing_enable"):
+        print("Enabling gradient checkpointing...")
+        model_obj.gradient_checkpointing_enable()
+
+    processor_obj = None
+    if hasattr(target_model, 'processor'):
+        processor_obj = target_model.processor
         
-    optim_prompts, steps, scores = attacker.run(model_obj, tokenizer_obj, args.question, target)
+    optim_prompts, steps, scores = attacker.run(
+        model_obj, 
+        tokenizer_obj, 
+        args.question, 
+        target_str,
+        audio_path=origin_question_audio,
+        processor=processor_obj
+    )
     
     # save the optim prompts into a csv file
-    save_path = f'./Results/{args.model_path}/GCG-{args.run_index}/{args.index}.csv'
-    if args.add_eos:
-        save_path = f'./Results/{args.model_path}/GCG_eos-{args.run_index}/{args.index}.csv'
+    save_path = f'./Results/{args.target_model}/PGD-{args.run_index}/{args.index}.csv'
+
     # Add evaluation method as a folder
     evaluation = getattr(args, 'evaluation', 'default')
-    save_path = save_path.replace(f'/{args.index}.csv', f'/{evaluation}/{args.index}.csv')
+    response = target_model.generate(origin_question_audio, optim_prompts)
+    print(response)
+    if args.defence == 'guard':
+        tokenizer = AutoTokenizer.from_pretrained(args.guard)
+        model = AutoModelForCausalLM.from_pretrained(
+            args.guard,
+            torch_dtype="auto",
+            device_map="auto"
+        )
+
+        messages = [
+            {"role": "user", "content": origin_question},
+            {"role": "assistant", "content": response},
+        ]
+
+        text = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False
+        )
+        model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+
+        # conduct text completion
+        generated_ids = model.generate(
+            **model_inputs,
+            max_new_tokens=128
+        )
+
+        output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
+
+        content = tokenizer.decode(output_ids, skip_special_tokens=True)
         
-    # check if the directory exists
-    if not os.path.exists(os.path.dirname(save_path)):
-        os.makedirs(os.path.dirname(save_path))
-        
-    with open(save_path, 'w') as f:
-        writer = csv.writer(f)
-        #write the column name
-        if evaluation == 'strongreject':
-            writer.writerow(['optim_prompts', 'steps', 'scores'])
-            for prompt, step, score in zip(optim_prompts, steps, scores):
-                writer.writerow([prompt, step, score])
-        else:
-            writer.writerow(['optim_prompts', 'steps'])
-            for prompt, step in zip(optim_prompts, steps):
-                writer.writerow([prompt, step])
+        print(content)
+        # save the optim prompts into a csv file
+        save_path = f'./Results/{args.target_model}/ICA/{args.index}.csv'
+
+        print("The save path is: ", save_path)
+        # check if the directory exists
+        if not os.path.exists(os.path.dirname(save_path)):
+            os.makedirs(os.path.dirname(save_path))
+            
+
+        with open(save_path, 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(['response', 'result'])
+            if 'safe' in content.lower():
+                if evaluation == 'strongreject':
+                    result = evaluate_generation_strongreject(origin_question, response)
+                    if result.success == True:
+                        print("Success!")
+                    writer.writerow([response, result.score])
+                else:
+                    result = predictor.predict([response], origin_question)[0]
+                    if result == 1:
+                        print("Success!")
+                    writer.writerow([response, result])
+            else:
+                if evaluation == 'strongreject':
+                    result = evaluate_generation_strongreject(origin_question, response)
+                    if result.success == True:
+                        print("Success!")
+                    writer.writerow([response, 0])
+                else:
+                    result = predictor.predict([response], origin_question)[0]
+                    if result == 1:
+                        print("Success!")
+                    writer.writerow([response, 0])
     
     print("The optim prompts are saved.")

@@ -14,6 +14,9 @@ import torch.nn as nn
 import tqdm
 import json
 import os
+import librosa
+from io import BytesIO
+from urllib.request import urlopen
 
 from transformers import (
     Qwen2AudioForConditionalGeneration,
@@ -75,7 +78,7 @@ def get_embedding_matrix(model):
 
     if isinstance(model, Qwen2AudioForConditionalGeneration):
         # Qwen2Audio 模型的文本 embedding
-        return model.model.embed_tokens.weight
+        return model.get_input_embeddings().weight
     elif hasattr(model, "get_input_embeddings"):
         return model.get_input_embeddings().weight
     elif hasattr(model, "model") and hasattr(model.model, "embed_tokens"):
@@ -195,7 +198,8 @@ def calc_loss(
 
     loss = nn.CrossEntropyLoss()(logits_slice, targets_slice)
 
-    return loss, logits
+    # Do not return logits to save memory
+    return loss
 
 
 def create_one_hot_and_embeddings(tokens, embed_weights, model):
@@ -223,7 +227,7 @@ class EmbeddingAttack:
         self.generate_interval = 500
         self.verbose = False
         
-    def run(self, model, tokenizer, fixed_prompt, target):
+    def run(self, model, tokenizer, fixed_prompt, target, audio_path=None, processor=None):
         """
         Run the embedding attack.
         Arguments:
@@ -231,6 +235,8 @@ class EmbeddingAttack:
             tokenizer: The loaded tokenizer.
             fixed_prompt: The question/prompt from the user.
             target: The target response string.
+            audio_path: Path or URL to input audio (optional).
+            processor: The loaded processor (optional, required if audio_path is provided).
             
         Returns:
             optim_prompts: List of optimized prompts/suffixes (strings).
@@ -241,6 +247,26 @@ class EmbeddingAttack:
         embed_weights = get_embedding_matrix(model)
         
         control_prompt = self.control_init
+        
+        # Audio processing
+        input_features = None
+        if audio_path and processor:
+            # Check if using Qwen2Audio or similar that needs input_features
+            # Load Audio
+            if os.path.exists(audio_path):
+                with open(audio_path, 'rb') as f:
+                    audio_bytes = BytesIO(f.read())
+            else:
+                audio_bytes = BytesIO(urlopen(audio_path).read())
+            
+            # Use processor's feature extractor sampling rate
+            sampling_rate = processor.feature_extractor.sampling_rate
+            audio_data, _ = librosa.load(audio_bytes, sr=sampling_rate)
+            
+            # Process audio input features
+            inputs = processor(text=fixed_prompt, audios=[audio_data], return_tensors="pt", sampling_rate=sampling_rate)
+            if "input_features" in inputs:
+                input_features = inputs["input_features"].to(device)
         
         # Tokenize fixed prompt
         input_ids_fixed = tokenizer(fixed_prompt, return_tensors='pt')["input_ids"].to(device)
@@ -282,8 +308,9 @@ class EmbeddingAttack:
             # Forward pass with perturbation
             current_attack_embeds = embeddings_attack + adv_pert
             
-            loss, logits = calc_loss(
-                model, embeddings, current_attack_embeds, embeddings_target, target_tokens_all
+            loss = calc_loss(
+                model, embeddings, current_attack_embeds, embeddings_target, target_tokens_all,
+                input_features=input_features
             )
             
             loss.backward()

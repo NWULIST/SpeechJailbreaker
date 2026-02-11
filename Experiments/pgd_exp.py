@@ -44,12 +44,14 @@ def test_openai_key():
         print("API key test failed:", e)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='GCG attack on harmful dataset')
+    parser = argparse.ArgumentParser(description='PGD attack on harmful dataset')
     parser.add_argument('--index', type=int, default=0, help='The index of the question')
-    parser.add_argument('--model_path', type=str, default='allenai/tulu-2-dpo-7b',
+    parser.add_argument('--evaluator_model', type=str, default='gpt-3.5-turbo-0125',
                         help='target model path')
+    parser.add_argument('--target_model', type=str, default='google/gemma-7b-it',
+                        help='The target model')
     parser.add_argument('--guard', type=str, default=None, help='guard model')
-    parser.add_argument('--defence', type=str, default='', help='defence file location')
+    parser.add_argument('--defence', type=str, default='None', help='defence file location')
     parser.add_argument("--control_string_length", type=int, default=20)
     parser.add_argument("--max_attack_steps", type=int, default=500)
     parser.add_argument("--early_stop", type=bool, default=False)
@@ -57,8 +59,6 @@ if __name__ == "__main__":
     parser.add_argument("--max_attack_attempts", type=int, default=1)
     parser.add_argument("--max_prompts_in_single_attack", type=int, default=1)
     parser.add_argument("--max_successful_prompt", type=int, default=1)
-    parser.add_argument("--add_eos", action='store_true')
-    parser.add_argument("--eos_num", type=int, default=10)
     parser.add_argument("--run_index", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--evaluation', type=str, default='default', choices=['default', 'strongreject'],
@@ -71,4 +71,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_random_seed(args.seed)  # Set the random seed
     test_openai_key()
-    gcg_attack(args)
+    pgd_attack(args)

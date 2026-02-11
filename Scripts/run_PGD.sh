@@ -10,7 +10,7 @@ EVALUATION="default"
 RUN_INDEX=2
 ADD_EOS=False
 EOS_NUM="10"
-defence = ""
+defence="None"
 guard=""
 # GPU
 GPU_MEMORY=40000
@@ -79,9 +79,9 @@ done
 
 # Set the log path based on ADD_EOS
 if [ "$ADD_EOS" = "True" ]; then
-    LOG_PATH="Logs/${MODEL_PATH}/GCG_eos-${RUN_INDEX}"
+    LOG_PATH="Logs/${MODEL_PATH}/PGD_eos-${RUN_INDEX}"
 else
-    LOG_PATH="Logs/${MODEL_PATH}/GCG-${RUN_INDEX}"
+    LOG_PATH="Logs/${MODEL_PATH}/PGD-${RUN_INDEX}"
 fi
 
 # Add evaluation method as a folder
@@ -126,10 +126,10 @@ for index in $(seq 0 $NUM_TASKS); do
     # Run the Python script on the free GPU
     (
         echo "Task $index started on GPU $FREE_GPU."
-        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --defence $defence --model_path $MODEL_PATH $ADD_EOS_FLAG --guard $guard --run_index $RUN_INDEX --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index  --defence $defence --model_path $MODEL_PATH $ADD_EOS_FLAG --guard $guard --run_index $RUN_INDEX --evaluation $EVALUATION${EOS_NUM:+ --eos_num $EOS_NUM} --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" > "${LOG_PATH}/${index}.log" 2>&1
+        echo "CMD: CUDA_VISIBLE_DEVICES=$FREE_GPU python -u $PYTHON_SCRIPT --index $index --defence $defence --target_model $MODEL_PATH --guard $guard --run_index $RUN_INDEX --evaluation $EVALUATION --harmful_dataset $HARMFUL_DATASET --targets_dataset $TARGETS_DATASET > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
+        CUDA_VISIBLE_DEVICES=$FREE_GPU python -u "$PYTHON_SCRIPT" --index $index  --defence $defence --target_model $MODEL_PATH  --guard $guard --run_index $RUN_INDEX --evaluation $EVALUATION --harmful_dataset "$HARMFUL_DATASET" --targets_dataset "$TARGETS_DATASET" > "${LOG_PATH}/${index}.log" 2>&1
         echo "Task $index on GPU $FREE_GPU finished."
-    ) &
+    ) 
 
     # Wait for 60 seconds to give the GPU some time to allocate memory
     sleep 60
