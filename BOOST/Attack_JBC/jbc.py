@@ -15,7 +15,7 @@ from typing import NamedTuple
 from datasets import load_dataset
 import json
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from defenses.SmoothLLMWrapper import SmoothLLMWrapper
+from Defenses.SmoothLLM import smoothllmWrapper
 import re
 
 class EvalResult(NamedTuple):
@@ -44,7 +44,7 @@ def JBC_attack(args, base_dir = "/projects/e33046/AABench"):
     print("The question is: ", origin_question)
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != "None":
+    if args.defence != '' and args.defence != 'guard' and args.defence != "None" and args.defence != "smoothllm":
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 

@@ -1,3 +1,4 @@
+#modified from
 #https://github.com/arobey1/smooth-llm
 # Original authors: ...
 # License: MIT
@@ -7,7 +8,7 @@ import copy
 import random
 import numpy as np
 
-import lib.perturbations as perturbations
+from Defenses.SmoothLLM import perturbations as perturbations
 
 class Defense:
 

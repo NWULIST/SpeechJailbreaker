@@ -1,11 +1,11 @@
 #importing official defense and input prompt object 
-from defenses.smoothllm import SmoothLLM
-from defenses.smoothllm import Defense
-from defenses.smooth_prompt import smooth_prompt
+from Defenses.SmoothLLM.smoothllm import SmoothLLM
+from Defenses.SmoothLLM.smoothllm import Defense
+from Defenses.SmoothLLM import smooth_prompt
 
 class SmoothLLMWrapper:
     #contructor that takes in LocalSpeechLLM, perturb method, % of characters to perturb, & number of samples to take 
-    def __init__(self, base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=5,):
+    def __init__(self, base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=2):
         """
         base_model: represents inputted LocalSpeechLLM
         """
@@ -15,6 +15,7 @@ class SmoothLLMWrapper:
         # wrap base_model into callable format for smoothllm
         self.callable_model = self._build_callable_model()
 
+        #initialize smoothllm defense
         self.smoothllm = SmoothLLM(
             target_model=self.callable_model,
             pert_type=pert_type,
@@ -26,14 +27,22 @@ class SmoothLLMWrapper:
         """
         Converts LocalSpeechLLM into a callable model
         that matches SmoothLLM input expectations.
+
+        SmoothLLM calls `self.target_model(batch=batch, max_new_tokens=...)` so smoothLLMWrapper must match
+        these parameters
         """
 
         base_model = self.base_model
 
         class CallableModel:
+            #make class callable
             def __call__(self, batch, max_new_tokens):
+                #array to collect reponses
                 outputs = []
+
+                #prompt_text = perturbed sample strings
                 for prompt_text in batch:
+            
                     # Using assumption that audio path is in base model
                     response = base_model.generate(
                         self.question_audio,
@@ -46,9 +55,7 @@ class SmoothLLMWrapper:
         return CallableModel()
 
     def generate(self, question_audio, prompt_text, max_tokens=512):
-        """
-        This matches your existing attack interface.
-        """
+      
         #stores audio so callable model can access it
         self.callable_model.question_audio = question_audio
 
