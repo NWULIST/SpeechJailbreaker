@@ -15,6 +15,7 @@ from typing import NamedTuple
 from datasets import load_dataset
 import json
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from defenses.SmoothLLMWrapper import SmoothLLMWrapper
 import re
 
 class EvalResult(NamedTuple):
@@ -62,9 +63,11 @@ def JBC_attack(args, base_dir = "/projects/e33046/AABench"):
 
     target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
 
+    if args.defence == "smoothllm":
+        base_model = target_model
+        target_model = SmoothLLMWrapper(base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=2)
 
     
-
     evaluation = getattr(args, 'evaluation', 'default')
     print("The evaluation is: ", evaluation, file=sys.stderr)
     if evaluation == 'strongreject':
