@@ -1,9 +1,9 @@
 #importing official defense and input prompt object 
 from Defenses.SmoothLLM.smoothllm import SmoothLLM
 from Defenses.SmoothLLM.smoothllm import Defense
-from Defenses.SmoothLLM import smooth_prompt
+from Defenses.SmoothLLM.smooth_prompt import smooth_prompt
 
-class SmoothLLMWrapper:
+class smoothllmWrapper:
     #contructor that takes in LocalSpeechLLM, perturb method, % of characters to perturb, & number of samples to take 
     def __init__(self, base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=2):
         """
@@ -59,6 +59,6 @@ class SmoothLLMWrapper:
         #stores audio so callable model can access it
         self.callable_model.question_audio = question_audio
 
-        smooth_prompt = smooth_prompt(prompt_text, max_tokens)
+        prompt_input = smooth_prompt(prompt_text, max_tokens)
 
-        return self.smoothllm(smooth_prompt)
+        return self.smoothllm(prompt_input)
