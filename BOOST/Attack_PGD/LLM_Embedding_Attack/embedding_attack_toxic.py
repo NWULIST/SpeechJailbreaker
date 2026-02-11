@@ -3,7 +3,7 @@ Inspired by the llm-attacks project: https://github.com/llm-attacks/llm-attacks
 
 Run:
 
-    python embedding_attack_submission.py --help
+    python embedding_attack_toxic.py --help
 
 for more information.
 """
@@ -12,14 +12,12 @@ import csv
 import torch
 import torch.nn as nn
 import tqdm
+import json
+import os
+import librosa
+from io import BytesIO
+from urllib.request import urlopen
 
-from transformers import (
-    Qwen2AudioForConditionalGeneration,
-    AutoTokenizer,
-    AutoProcessor,
-)
-
-import torch
 from transformers import (
     Qwen2AudioForConditionalGeneration,
     AutoTokenizer,
@@ -80,10 +78,19 @@ def get_embedding_matrix(model):
 
     if isinstance(model, Qwen2AudioForConditionalGeneration):
         # Qwen2Audio 模型的文本 embedding
+        return model.get_input_embeddings().weight
+    elif hasattr(model, "get_input_embeddings"):
+        return model.get_input_embeddings().weight
+    elif hasattr(model, "model") and hasattr(model.model, "embed_tokens"):
         return model.model.embed_tokens.weight
-
+    elif hasattr(model, "transformer") and hasattr(model.transformer, "wte"):
+        return model.transformer.wte.weight
     else:
-        raise ValueError(f"❌ Unknown model type: {type(model)}")
+        # Fallback using common attribute names
+        try:
+            return model.get_input_embeddings().weight
+        except:
+            raise ValueError(f"❌ Unknown model type: {type(model)}")
 
 
 
@@ -95,7 +102,10 @@ def generate(model, input_embeddings, num_tokens=50, input_features=None):
       - Qwen2AudioForConditionalGeneration (可选音频输入)
     """
     model.eval()
+    embedding_matrix = get_embedding_matrix(model)[0] # get_embedding_matrix returns weight, we need just weight not [0] if it was tuple.
+    # Actually get_embedding_matrix returns a tensor (weight).
     embedding_matrix = get_embedding_matrix(model)
+
     input_embeddings = input_embeddings.clone()
 
     generated_tokens = torch.tensor([], dtype=torch.long, device=model.device)
@@ -150,13 +160,46 @@ def calc_loss(
     logits = outputs.logits  # (batch, seq_len, vocab_size)
 
     # 计算 loss 区间
-    loss_slice_start = len(embeddings[0]) + len(embeddings_attack[0])
-    logits_slice = logits[0, loss_slice_start - 1 : -1, :]
-    targets_slice = targets[: logits_slice.size(0)]
+    # embeddings: fixed_prompt
+    # embeddings_attack: control_prompt
+    # embeddings_target: target
+    # We want to predict target given fixed+attack
+    
+    # logits shape: [batch, seq_len, vocab]
+    # The logits we care about start after (len(fixed) + len(attack) - 1)
+    # Because logit[i] predicts token[i+1]
+    
+    len_fixed = embeddings.shape[1]
+    len_attack = embeddings_attack.shape[1]
+    len_target = embeddings_target.shape[1]
+    
+    # The last token of attack predicts the first token of target
+    # So we start from len_fixed + len_attack - 1
+    loss_slice_start = len_fixed + len_attack
+    
+    # We want logits for [start-1 : end-1]
+    # start = loss_slice_start
+    # end = loss_slice_start + len_target
+    
+    # logits for predicting target[0] is at index [loss_slice_start-1]
+    # logits for predicting target[last] is at index [loss_slice_start + len_target - 2]
+    
+    # Slice logits:
+    logits_slice = logits[0, loss_slice_start - 1 : loss_slice_start + len_target - 1, :]
+    
+    # targets should be the token ids of target
+    targets_slice = targets
+    
+    if logits_slice.shape[0] != targets_slice.shape[0]:
+        # Truncate to min length if mismatch (should not happen if logic is correct)
+        min_len = min(logits_slice.shape[0], targets_slice.shape[0])
+        logits_slice = logits_slice[:min_len]
+        targets_slice = targets_slice[:min_len]
 
     loss = nn.CrossEntropyLoss()(logits_slice, targets_slice)
 
-    return loss, logits[:, loss_slice_start - 4 : -1, :]
+    # Do not return logits to save memory
+    return loss
 
 
 def create_one_hot_and_embeddings(tokens, embed_weights, model):
@@ -172,136 +215,126 @@ def create_one_hot_and_embeddings(tokens, embed_weights, model):
     return one_hot, embeddings
 
 
-def run(
-    model_path: str,
-    num_steps: int = 100,
-    fixed_prompt: str = "I have a job to do.",
-    control_prompt_init: str = "! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !",
-    target: str = "It seems like you're saying that you have something to do, but you're not specifying what that something is. Is that correct?",
-    device: str = "cuda:0",
-    num_tokens: int = 500,
-    step_size: float = 0.01,
-    print_interval: int = 5,
-    generate_interval: int = 500,
-    seed: int = 42,
-    load_dataset=True,
-    verbose=False,
-    early_stopping=True,
-):
-    """
-    Embedding space attack on Llama2.
-
-    String will overall look like:
-
-        [fixed_prompt] + [control_prompt] + [target]
-
-                                                ^ target of optimization
-
-                                ^ control tokens optimized to maximize target.
-                                  genration begins at the end of these embeddings.
-
-              ^ a fixed prompt that will not get modified during optimization. Can
-                be used to provide a fixed context; matches the experimental setup
-                of Zou et al., 2023.
-
-    Args:
-        model_path (str): Path to your Llama-2-7b-chat-hf directory
-        num_steps (int): Number of gradient steps to take in the attack
-        fixed_prompt (str): Part of the prompt that won't be altered/have gradients backpropogated
-            to. You can specify an empty space i.e. fixed_prompt=' ' if you wish to only have a
-            controllabe prompt.
-        control_prompt (str): Part of the prompt that will be modified by gradient info. Generation
-            starts at the end of this string.
-        target (str): Optimization target; what the LLM will seek to generate immediately after
-            the control string.
-    """
-    if seed is not None:
-        torch.manual_seed(seed)
-
-    model, tokenizer = load_model_and_tokenizer(
-        model_path, low_cpu_mem_usage=True, use_cache=False, device=device
-    )
-    embed_weights = get_embedding_matrix(model)
-
-    if load_dataset:
-        filename = "harmful_behaviors.csv"
-        reader = csv.reader(open(filename, "r"))
-        next(reader)
-    else:
-        print(f"Fixed prompt:\t '{fixed_prompt}'")
-        print(f"Control prompt:\t '{control_prompt_init}'")
-        print(f"Target string:\t '{target}'")
-        reader = [[fixed_prompt, target]]
-
-    total_steps = 0
-    n = 0
-    successful_attacks = 0
-
-    for row in reader:
-        fixed_prompt, target = row
-        control_prompt = control_prompt_init
-        print(fixed_prompt, target)
-
-        # always appends a pad token at front; deal with it
-        input_tokens = torch.tensor(tokenizer(fixed_prompt)["input_ids"], device=device)
-        attack_tokens = torch.tensor(tokenizer(control_prompt)["input_ids"], device=device)[1:]
-        target_tokens = torch.tensor(tokenizer(target)["input_ids"], device=device)[1:]
-
-        # inputs
-        one_hot_inputs, embeddings = create_one_hot_and_embeddings(input_tokens, embed_weights, model)
-        # attack
-        one_hot_attack, embeddings_attack = create_one_hot_and_embeddings(attack_tokens, embed_weights, model)
-        # one_hot_attack, embeddings_attack = one_hot_attack[1:], embeddings_attack[1:]
-        # targets
-        one_hot_target, embeddings_target = create_one_hot_and_embeddings(target_tokens, embed_weights, model)
-        # one_hot_target, embeddings_target = one_hot_target[1:], embeddings_target[1:]
+class EmbeddingAttack:
+    def __init__(self, args):
+        self.args = args
+        self.num_steps = getattr(args, 'n_steps', 100)
+        self.step_size = getattr(args, 'step_size', 0.01)
+        self.control_init = getattr(args, 'control_init', "! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !")
+        # If args.device exists use it, else default to cuda
+        self.device = getattr(args, 'device', 'cuda:0')
+        self.print_interval = 5
+        self.generate_interval = 500
+        self.verbose = False
+        
+    def run(self, model, tokenizer, fixed_prompt, target, audio_path=None, processor=None):
+        """
+        Run the embedding attack.
+        Arguments:
+            model: The loaded HuggingFace model.
+            tokenizer: The loaded tokenizer.
+            fixed_prompt: The question/prompt from the user.
+            target: The target response string.
+            audio_path: Path or URL to input audio (optional).
+            processor: The loaded processor (optional, required if audio_path is provided).
+            
+        Returns:
+            optim_prompts: List of optimized prompts/suffixes (strings).
+            steps: List of steps where they were recorded.
+            scores: List of loss scores.
+        """
+        device = model.device
+        embed_weights = get_embedding_matrix(model)
+        
+        control_prompt = self.control_init
+        
+        # Audio processing
+        input_features = None
+        if audio_path and processor:
+            # Check if using Qwen2Audio or similar that needs input_features
+            # Load Audio
+            if os.path.exists(audio_path):
+                with open(audio_path, 'rb') as f:
+                    audio_bytes = BytesIO(f.read())
+            else:
+                audio_bytes = BytesIO(urlopen(audio_path).read())
+            
+            # Use processor's feature extractor sampling rate
+            sampling_rate = processor.feature_extractor.sampling_rate
+            audio_data, _ = librosa.load(audio_bytes, sr=sampling_rate)
+            
+            # Process audio input features
+            inputs = processor(text=fixed_prompt, audios=[audio_data], return_tensors="pt", sampling_rate=sampling_rate)
+            if "input_features" in inputs:
+                input_features = inputs["input_features"].to(device)
+        
+        # Tokenize fixed prompt
+        input_ids_fixed = tokenizer(fixed_prompt, return_tensors='pt')["input_ids"].to(device)
+        if input_ids_fixed.dim() == 2: input_ids_fixed = input_ids_fixed[0]
+        
+        # Tokenize control prompt
+        # Note: Llama tokenizer adds BOS to start by default, correct handling needed
+        control_tokens_all = tokenizer(control_prompt, return_tensors='pt')["input_ids"].to(device)
+        if control_tokens_all.dim() == 2: control_tokens_all = control_tokens_all[0]
+        
+        # Tokenize target
+        target_tokens_all = tokenizer(target, return_tensors='pt')["input_ids"].to(device)
+        if target_tokens_all.dim() == 2: target_tokens_all = target_tokens_all[0]
+        
+        # Handle BOS token removal for concatenation
+        if tokenizer.bos_token_id is not None:
+            # removing 'beginning of sentence' token for components that are appended
+            if len(control_tokens_all) > 1 and control_tokens_all[0] == tokenizer.bos_token_id:
+                control_tokens_all = control_tokens_all[1:]
+            if len(target_tokens_all) > 1 and target_tokens_all[0] == tokenizer.bos_token_id:
+                target_tokens_all = target_tokens_all[1:]
+                
+        # Embeddings
+        one_hot_inputs, embeddings = create_one_hot_and_embeddings(input_ids_fixed, embed_weights, model)
+        one_hot_attack, embeddings_attack = create_one_hot_and_embeddings(control_tokens_all, embed_weights, model)
+        one_hot_target, embeddings_target = create_one_hot_and_embeddings(target_tokens_all, embed_weights, model)
 
         adv_pert = torch.zeros_like(embeddings_attack, requires_grad=True, device=device)
-        for i in range(num_steps):
-            total_steps += 1
-            loss, logits = calc_loss(
-                model, embeddings, embeddings_attack + adv_pert, embeddings_target, one_hot_target
+        
+        optim_prompts = []
+        steps = []
+        scores = []
+
+        print(f"Starting Embedding Attack for {self.num_steps} steps...")
+
+        for i in range(self.num_steps):
+            adv_pert.requires_grad_()
+            
+            # Forward pass with perturbation
+            current_attack_embeds = embeddings_attack + adv_pert
+            
+            loss = calc_loss(
+                model, embeddings, current_attack_embeds, embeddings_target, target_tokens_all,
+                input_features=input_features
             )
+            
             loss.backward()
             grad = adv_pert.grad.data
-            adv_pert.data -= torch.sign(grad) * step_size
+            
+            # Update perturbation (Signed Gradient Descent)
+            adv_pert.data -= torch.sign(grad) * self.step_size
 
             model.zero_grad()
             adv_pert.grad.zero_()
 
-            tokens_pred = logits.argmax(2)
-            output_str = tokenizer.decode(tokens_pred[0][3:].cpu().numpy())
-            sucess = output_str == target
-            if sucess:
-                successful_attacks += 1
-                if early_stopping:
-                    break
-
-            if i % print_interval == 0 and i != 0:
-                print(f"Iter: {i}")
-                print(f"loss: {loss}")
-                print(f"norms: {(embeddings_attack + adv_pert).norm(2, dim=2)}")
-                print(f"output:{output_str}")
-
-            if i % generate_interval == 0 and i != 0 and verbose:
-                full_embedding = torch.hstack([embeddings, embeddings_attack + adv_pert])
-                generated_tokens = generate(model, full_embedding, num_tokens)
-                generated_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
-                print("==============================================")
-                print(generated_text)
-                print("============================================== ")
-
-        if verbose:
-            full_embedding = torch.hstack([embeddings, embeddings_attack + adv_pert])
-            generated_tokens = generate(model, full_embedding, num_tokens)
-            generated_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
-            print("================== FINAL =====================")
-            print(generated_text)
-            print("============================================== ")
-
-        n += 1
-        print(f"Successful attacks: {successful_attacks}/{n} \nAverage steps: {total_steps/n}")
-
+            scores.append(loss.item())
+            steps.append(i)
+            
+            # Since we optimize embeddings directly, there is no "text" prompt changing every step.
+            # We return a placeholder string or the initial prompt for consistency.
+            # If we wanted Soft Prompt Tuning results, we'd save the embeddings or projected tokens.
+            # Here we save a descriptive string.
+            optim_prompts.append(f"SoftPrompt_Loss_{loss.item():.4f}")
+            
+            if i % self.print_interval == 0:
+                print(f"Iter: {i}, Loss: {loss.item():.4f}")
+                
+        return optim_prompts, steps, scores
 
 if __name__ == "__main__":
-    run()
+    pass
