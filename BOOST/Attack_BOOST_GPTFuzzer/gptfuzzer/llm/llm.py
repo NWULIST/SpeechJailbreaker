@@ -442,7 +442,7 @@ class LocalSpeechLLM(LLM):
         generate_ids = self.model.generate(**inputs, max_new_tokens=256)
         generate_ids = generate_ids[:, inputs['input_ids'].size(1):]
 
-        print("GENERATION CONTEXXXXXTTTTTTTTTTTTTT generation_config.max_length =", self.model.generation_config.max_length) 
+        #print("GENERATION CONTEXXXXXTTTTTTTTTTTTTT generation_config.max_length =", self.model.generation_config.max_length) 
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         return response

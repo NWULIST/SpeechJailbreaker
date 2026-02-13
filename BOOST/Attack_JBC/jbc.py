@@ -118,7 +118,7 @@ def JBC_attack(args, base_dir = "/projects/e33046/AABench"):
                     args.guard,
                     torch_dtype="auto",
                     device_map="auto"
-                )
+                ).to("cuda")
 
                 messages = [
                     {"role": "user", "content": origin_question},

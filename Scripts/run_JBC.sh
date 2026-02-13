@@ -7,6 +7,7 @@ set -e
 module load cuda/cuda-12.1.0-openmpi-4.1.4
 export HF_HOME="/projects/e33046/.cache/"
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export CUDA_LAUNCH_BLOCKING=1 #forces error reporting 
 
 ###########################################
 # CONFIG

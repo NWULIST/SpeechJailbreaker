@@ -2,6 +2,7 @@
 from Defenses.SmoothLLM.smoothllm import SmoothLLM
 from Defenses.SmoothLLM.smoothllm import Defense
 from Defenses.SmoothLLM.smooth_prompt import smooth_prompt
+import torch
 
 class smoothllmWrapper:
     #contructor that takes in LocalSpeechLLM, perturb method, % of characters to perturb, & number of samples to take 
@@ -40,15 +41,19 @@ class smoothllmWrapper:
                 #array to collect reponses
                 outputs = []
 
+                device = next(base_model.model.parameters()).device
+                audio = self.question_audio.to(device)
+
                 #prompt_text = perturbed sample strings
                 for prompt_text in batch:
             
                     # Using assumption that audio path is in base model
-                    response = base_model.generate(
-                        self.question_audio,
-                        prompt_text,
-                        max_tokens=max_new_tokens
-                    )
+                    with torch.no_grad():
+                        response = base_model.generate(
+                            self.question_audio,
+                            prompt_text,
+                            max_tokens=max_new_tokens
+                        )
                     outputs.append(response)
                 return outputs
 
@@ -57,8 +62,10 @@ class smoothllmWrapper:
     def generate(self, question_audio, prompt_text, max_tokens=512):
       
         #stores audio so callable model can access it
-        self.callable_model.question_audio = question_audio
+        self.callable_model.question_audio = question_audio.to("cuda")
 
         prompt_input = smooth_prompt(prompt_text, max_tokens)
+
+        torch.cuda.empty_cache() 
 
         return self.smoothllm(prompt_input)
