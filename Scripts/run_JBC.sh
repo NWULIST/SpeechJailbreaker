@@ -24,17 +24,17 @@ GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
 #NUM_GPU_SEARCH=7             # Highest GPU index to search
 
 #change to 0 since I am using only one gpu 
-NUM_GPU_SEARCH=0
+NUM_GPU_SEARCH=1
 
 #NUM_TASKS=4723                  # Total tasks to run
 
-#start with 2 just to gauge that it works
+#start with 2 just to gauge that it works->change default in run_interface.py 
 NUM_TASKS=3
 
 #MAX_PARALLEL=2                 # Maximum jobs to run simultaneously
 
 #testing on one gpu 
-MAX_PARALLEL=1
+MAX_PARALLEL=2
 
 RETRY_DELAY=5
 LOCK_DIR="/tmp/gpu_locks"
@@ -156,6 +156,7 @@ unlock_gpu() {
 ###########################################
 # RUN JOB
 ###########################################
+echo "DEBUG: NUM_TASKS is set to: $NUM_TASKS"
 run_job() {
     local idx=$1
     echo "Job $idx: waiting for a free GPU..."
@@ -217,7 +218,7 @@ echo "job_index,total_score,total_count" > "$RESULTS_CSV"
 
 echo "Launching $NUM_TASKS jobs with maximum $MAX_PARALLEL in parallel..."
 
-for idx in $(seq 1 $NUM_TASKS); do
+for idx in $(seq 0 $((NUM_TASKS-1))); do
     run_job $idx &
     PIDS+=($!)
 
