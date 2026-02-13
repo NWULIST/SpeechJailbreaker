@@ -68,9 +68,6 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
     else:
         target_model = LocalLLM(args.target_model, system_message=system_message)
 
-    if args.defence == "smoothllm":
-        base_model = target_model
-        target_model = smoothllmWrapper(base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=2)
 
     print("Running index: ", args.prompt_index)
     ds = load_dataset("NWULIST/AABench", "default")['train']
@@ -124,6 +121,10 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
                 target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
             else:
                 target_model = LocalLLM(args.target_model, system_message=system_message)
+
+        if args.defence == "smoothllm":
+            base_model = target_model
+            target_model = smoothllmWrapper(base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=2)
 
         if args.few_shot_num == 1:
             ICL = one_shot
