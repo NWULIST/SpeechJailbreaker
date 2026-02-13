@@ -29,7 +29,7 @@ NUM_GPU_SEARCH=0
 #NUM_TASKS=4723                  # Total tasks to run
 
 #start with 2 just to gauge that it works
-NUM_TASKS=2
+NUM_TASKS=3
 
 #MAX_PARALLEL=2                 # Maximum jobs to run simultaneously
 
