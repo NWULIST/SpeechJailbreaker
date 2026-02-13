@@ -41,9 +41,6 @@ class smoothllmWrapper:
                 #array to collect reponses
                 outputs = []
 
-                device = next(base_model.model.parameters()).device
-                audio = self.question_audio.to(device)
-
                 #prompt_text = perturbed sample strings
                 for prompt_text in batch:
             
@@ -62,7 +59,7 @@ class smoothllmWrapper:
     def generate(self, question_audio, prompt_text, max_tokens=512):
       
         #stores audio so callable model can access it
-        self.callable_model.question_audio = question_audio.to("cuda")
+        self.callable_model.question_audio = question_audio
 
         prompt_input = smooth_prompt(prompt_text, max_tokens)
 
