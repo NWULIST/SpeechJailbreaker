@@ -12,7 +12,7 @@ EVALUATION="default"
 RUN_INDEX=2
 ADD_EOS=False
 EOS_NUM="10"
-defence = ""
+defence=""
 guard=""
 
 # GPU

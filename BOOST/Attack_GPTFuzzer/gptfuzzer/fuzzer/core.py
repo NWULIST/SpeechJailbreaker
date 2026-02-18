@@ -176,69 +176,70 @@ class GPTFuzzer:
     def evaluate(self, prompt_nodes: 'list[PromptNode]'):
         messages = []
         valid_prompt_indices = []
-    
-        # Prepare messages for batch generation and track valid prompts
+
         for i, prompt_node in enumerate(prompt_nodes):
             message = synthesis_message(self.questions_txt[0], prompt_node.prompt)
             if message is not None:
                 messages.append(message)
-                
                 valid_prompt_indices.append(i)
-        if self.defence == 'guard':
-            tokenizer = AutoTokenizer.from_pretrained(self.guard)
-            model = AutoModelForCausalLM.from_pretrained(
-                self.guard,
-                torch_dtype="auto",
-                device_map="auto"
-            )
-        # Generate responses in batch
+
         if messages:
             print(messages)
-            responses = self.target.generate_batch(self.questions,messages)
+            responses = self.target.generate_batch(self.questions, messages)
             logging.info(self.predictor)
-            # Assign responses and results to valid prompt nodes
+
             for i, response in zip(valid_prompt_indices, responses):
                 prompt_nodes[i].response = [response]
-                messages = [
-                    {"role": "user", "content": self.questions_txt[0]},
-                    {"role": "assistant", "content": response},
-                ]
 
-                text = tokenizer.apply_chat_template(
-                    messages,
-                    tokenize=False
-                )
-                model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+                if self.defence == 'guard':
+                    tokenizer = AutoTokenizer.from_pretrained(self.guard)
+                    model = AutoModelForCausalLM.from_pretrained(
+                        self.guard,
+                        torch_dtype="auto",
+                        device_map="auto"
+                    )
+                    messages_guard = [
+                        {"role": "user", "content": self.questions_txt[0]},
+                        {"role": "assistant", "content": response},
+                    ]
+                    text = tokenizer.apply_chat_template(
+                        messages_guard,
+                        tokenize=False
+                    )
+                    model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+                    generated_ids = model.generate(
+                        **model_inputs,
+                        max_new_tokens=128
+                    )
+                    output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
+                    content = tokenizer.decode(output_ids, skip_special_tokens=True)
 
-                # conduct text completion
-                generated_ids = model.generate(
-                    **model_inputs,
-                    max_new_tokens=128
-                )
+                    if 'safe' in content.lower():
+                        if self.evaluation != 'strongreject':
+                            prompt_nodes[i].results = self.predictor.predict([response], self.questions_txt[0])
+                        else:
+                            prompt_nodes[i].results = self.predictor([response], self.questions_txt[0], None)
+                            print(f"Prompt: {prompt_nodes[i].prompt}, Response: {response}, Results: {prompt_nodes[i].results}")
+                    else:
+                        if isinstance(prompt_nodes[i].results, list) and len(prompt_nodes[i].results) >= 1:
+                            for item in prompt_nodes[i].results:
+                                item.success = False
+                        else:
+                            prompt_nodes[i].results.success = False
 
-                output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
-
-                content = tokenizer.decode(output_ids, skip_special_tokens=True)
-                if 'safe' in content.lower():
+                else:
+                    # Spirit / prompt-based defences — evaluate directly, no guard
                     if self.evaluation != 'strongreject':
                         prompt_nodes[i].results = self.predictor.predict([response], self.questions_txt[0])
                     else:
                         prompt_nodes[i].results = self.predictor([response], self.questions_txt[0], None)
                         print(f"Prompt: {prompt_nodes[i].prompt}, Response: {response}, Results: {prompt_nodes[i].results}")
-                else:
-                    if isinstance(prompt_nodes[i].results, list) and len(prompt_nodes[i].results) >= 1:
-                        for item in prompt_nodes[i].results:
-                            item.sucess = False
-                    else:
-                        self.results.success = False
-                    
-            # Assign empty responses and results to invalid prompt nodes
+
             for i in range(len(prompt_nodes)):
                 if i not in valid_prompt_indices:
                     prompt_nodes[i].response = []
                     prompt_nodes[i].results = []
         else:
-            # If all prompts are invalid, set empty responses and results
             for prompt_node in prompt_nodes:
                 prompt_node.response = []
                 prompt_node.results = []
@@ -253,7 +254,7 @@ class GPTFuzzer:
                 self.prompt_nodes.append(prompt_node)
                 if self.evaluation == 'strongreject':
                     self.writter.writerow([prompt_node.index, prompt_node.prompt,
-                                       prompt_node.response, prompt_node.parent.index, prompt_node.results.score, self.current_query])
+                                       prompt_node.response, prompt_node.parent.index, prompt_node.results[0].score, self.current_query])
                 else:
                     self.writter.writerow([prompt_node.index, prompt_node.prompt,
                                        prompt_node.response, prompt_node.parent.index, prompt_node.results, self.current_query])
