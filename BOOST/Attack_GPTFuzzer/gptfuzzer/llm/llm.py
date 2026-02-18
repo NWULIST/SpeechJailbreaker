@@ -386,9 +386,11 @@ class LocalSpeechLLM(LLM):
                  dtype=torch.float16,
                  load_8bit=True,
                  cpu_offloading=False,
-                 system_message=None
+                 system_message=None,
+                 defence=None
                  ):
         super().__init__()
+        self.defence = defence
 
         self.model, self.processor = self.create_model(
             model_path,
@@ -591,10 +593,47 @@ class LocalSpeechLLM(LLM):
                                 sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
-            inputs = self.processor(text=text_prompt, audios=audios, return_tensors="pt", padding=True)
+        # audio keyword instead of audios (may need to be updated in the future)
+            inputs = self.processor(text=text_prompt, audio=audios, sampling_rate=self.processor.feature_extractor.sampling_rate, return_tensors="pt", padding=True)
             inputs = {k: v.to("cuda") for k, v in inputs.items()}
            
-            generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
+        # SPIRIT Defense
+        if hasattr(self, 'defence') and self.defence in ['prune', 'bias', 'patch']:
+            from BOOST.Attack_GPTFuzzer.gptfuzzer.llm.noise_analyzer import detect_noise_sensitive_neurons
+            from BOOST.Attack_GPTFuzzer.gptfuzzer.llm.noise_defender import run_with_intervention
+            
+            # 1. map the hijacked neurons 
+            # use the current inputs, otherwise fall back on defaults
+            neurons, clean_activations, _ = detect_noise_sensitive_neurons(
+                model=self.model,
+                clean_audio=inputs, 
+                noisy_audio=inputs,
+                top_k_percent=0.5,
+                activations='lm'
+            )
+            
+            # 2. setup intervention parameters
+            intervention_kwargs = {
+                'model': self.model,
+                'input_data': inputs,
+                'neurons': neurons,
+                'intervention_type': self.defence,
+                'mode': 'all'
+            }
+            
+            if self.defence == 'bias':
+                intervention_kwargs['bias'] = 0.5
+            elif self.defence == 'patch':
+                intervention_kwargs['clean_activations'] = clean_activations
+
+            # 3. generated text using defended activations
+            defended_output = run_with_intervention(**intervention_kwargs)
+            generate_ids = defended_output.sequences
+            
+        else:
+            # otherwise, standard/undefended generation
+                generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
+
             generate_ids = generate_ids[:, inputs['input_ids'].size(1):]
 
             response = self.processor.batch_decode(
@@ -648,12 +687,47 @@ class LocalSpeechLLM(LLM):
                                     sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
-        inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
+        inputs = self.processor(text=text, audio=audios, sampling_rate=self.processor.feature_extractor.sampling_rate, return_tensors="pt", padding=True)
         device = next(self.model.parameters()).device
         inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
         input_ids_length = inputs['input_ids'].size(1)
 
-        generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
+        # --- SPIRIT DEFENSE INTERCEPTION (BATCHED) ---
+        if hasattr(self, 'defence') and self.defence in ['prune', 'bias', 'patch']:
+            from BOOST.Attack_GPTFuzzer.gptfuzzer.llm.noise_analyzer import detect_noise_sensitive_neurons
+            from BOOST.Attack_GPTFuzzer.gptfuzzer.llm.noise_defender import run_with_intervention
+            
+            # 1. Map the hijacked neurons across the batch
+            neurons, clean_activations, _ = detect_noise_sensitive_neurons(
+                model=self.model,
+                clean_audio=inputs, 
+                noisy_audio=inputs,
+                top_k_percent=0.5,
+                activations='lm'
+            )
+            
+            # 2. Setup the intervention parameters
+            intervention_kwargs = {
+                'model': self.model,
+                'input_data': inputs,
+                'neurons': neurons,
+                'intervention_type': self.defence,
+                'mode': 'all'
+            }
+            
+            if self.defence == 'bias':
+                intervention_kwargs['bias'] = 0.5
+            elif self.defence == 'patch':
+                intervention_kwargs['clean_activations'] = clean_activations
+
+            # 3. Generate text using the defended batched activations
+            defended_output = run_with_intervention(**intervention_kwargs)
+            generate_ids = defended_output.sequences
+            
+        else:
+            # Standard, undefended batched generation
+            generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
+        # ---------------------------------------------
 
         # Remove the input tokens from the generated output
         generate_ids = generate_ids[:, input_ids_length:]
