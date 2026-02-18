@@ -290,7 +290,7 @@ def autoattack_attack(args, base_dir="/projects/e33046/AABench"):
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model, args.gemini_key)
     elif 'audio' in args.target_model.lower():
-        target_model = LocalSpeechLLM(args.target_model)
+        target_model = LocalSpeechLLM(args.target_model, defence=args.defence)
     elif 'gemma' in args.target_model.lower():
         target_model = LocalSpeechLLM(args.target_model)
     else:
