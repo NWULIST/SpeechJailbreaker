@@ -38,6 +38,9 @@ dependencies:
       - torchvision
       - torchaudio
       - transformers
+      - matplotlib
+      - noisereduce
+      - soundfile
       - accelerate
       - einops
       - sentencepiece
