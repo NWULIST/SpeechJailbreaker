@@ -49,7 +49,9 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     origin_question = ds['prompt_text'][args.index]
     
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
+    SPIRIT_DEFENCES = {'prune', 'bias', 'patch'}
+
+    if args.defence != '' and args.defence != 'guard' and args.defence != 'None' and args.defence not in SPIRIT_DEFENCES:
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
@@ -71,7 +73,7 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model, args.gemini_key)
     elif 'audio' in args.target_model.lower():
-        target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+        target_model = LocalSpeechLLM(args.target_model, system_message=system_message, defence=args.defence)
     else:
        target_model = LocalLLM(args.target_model, system_message=system_message)
     

@@ -49,7 +49,9 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     origin_question = ds['prompt_text'][args.index]
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != "None":
+    SPIRIT_DEFENCES = {'prune', 'bias', 'patch'}
+
+    if args.defence != '' and args.defence != 'guard' and args.defence != 'None' and args.defence not in SPIRIT_DEFENCES:
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
