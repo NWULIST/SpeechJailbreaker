@@ -37,11 +37,16 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     
     ds = load_dataset("NWULIST/AABench", "default")['train']
     
-    # Get list of indices to process
-    indices_to_process = args.indices_list
-    print(f"Processing {len(indices_to_process)} indices: {indices_to_process}")
-    
-    # Load system message if defense is specified
+    #seeing how much information is being read from huggingface
+    #print(f"Total Samples from AABENCH: {len(ds)}")
+
+    relative_path = ds['prompt_audio_path'][args.index]
+    origin_question_audio = os.path.join(base_dir, relative_path)
+    origin_question = ds['prompt_text'][args.index]
+
+    args.question = origin_question_audio
+    print("The question is: ", origin_question)
+
     system_message = None
     if args.defence != '' and args.defence != 'guard' and args.defence != "None":
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
@@ -52,13 +57,14 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                 system_message = json.load(f)["prompt"]
         else:
             raise FileNotFoundError(f"Defense file not found: {defence_path}")
-    
-    # ============================================================
-    # LOAD MODEL ONCE - This is the key optimization!
-    # ============================================================
-    print(f"Loading target model: {args.target_model}")
-    # We'll create the model without a specific question first
-    # and pass questions dynamically during generation
+
+
+    if args.defence == 'self-reminder':
+        system_message = system_message.replace("{QUESTION}", origin_question)
+        print(system_message)
+        
+
+
     target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     print("Target model loaded successfully!")
     

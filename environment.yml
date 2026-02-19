@@ -57,11 +57,11 @@ dependencies:
       # other tooling
       - llm
       - fastchat
-      - jailbreakbench
-
-      # quantization
-      - autoawq
-      - auto-gptq
-
-      # build from source on glibc 2.28 system
-      - vllm
+      - numpy
+      - anthropic
+      - google.generativeai
+      - tqdm
+      - librosa 
+      - dotenv
+      - timm
+      #- vllm

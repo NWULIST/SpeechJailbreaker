@@ -11,21 +11,90 @@ export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 ###########################################
 # CONFIG
 ###########################################
-PYTHON_SCRIPT="./Experiments/jbc_exp.py"
-MODEL_PATH="google/gemma-3n-E2B-it"
+#PYTHON_SCRIPT="./Experiments/jbc_exp.py"
+PYTHON_SCRIPT="Experiments/jbc_exp.py"
+
+MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="strongreject"
 RUN_INDEX=2
 defence=""
 guard=""
 GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
-NUM_GPU_SEARCH=7               # Highest GPU index to search
-DATASET_SIZE=4723              # Total size of your dataset
-RANDOM_SEED=""                 # Set to empty string for different samples each run
-NUM_TASKS=400                  # Total tasks to run
-BATCH_SIZE=100                  # Process 25 items per GPU (adjust based on memory)
-MAX_PARALLEL=4                 # Maximum batches to run simultaneously
+#NUM_GPU_SEARCH=7             # Highest GPU index to search
+
+#change to 0 since I am using only one gpu 
+NUM_GPU_SEARCH=0
+
+#NUM_TASKS=4723                  # Total tasks to run
+
+#start with 2 just to gauge that it works
+NUM_TASKS=2
+
+#MAX_PARALLEL=2                 # Maximum jobs to run simultaneously
+
+#testing on one gpu 
+MAX_PARALLEL=1
+
 RETRY_DELAY=5
 LOCK_DIR="/tmp/gpu_locks"
+
+#add parsing so logging files are correctly labeled for the appropriate model
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --model_path)
+      MODEL_PATH="$2"
+      shift 2
+      ;;
+    --evaluation)
+      EVALUATION="$2"
+      shift 2
+      ;;
+    --run_index)
+      RUN_INDEX="$2"
+      shift 2
+      ;;
+    --add_eos)
+      ADD_EOS="$2"
+      shift 2
+      ;;
+    --eos_num)
+      EOS_NUM="$2"
+      shift 2
+      ;;
+    --gpu_memory)
+      GPU_MEMORY="$2"
+      shift 2
+      ;;
+    --num_gpu_search)
+      NUM_GPU_SEARCH="$2"
+      shift 2
+      ;;
+    --num_tasks)
+      NUM_TASKS="$2"
+      shift 2
+      ;;
+    --defence)
+      defence="$2"
+      shift 2
+      ;;
+    --guard)
+      guard="$2"
+      shift 2
+      ;;
+    --harmful_dataset)
+      HARMFUL_DATASET="$2"
+      shift 2
+      ;;
+    --targets_dataset)
+      TARGETS_DATASET="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
 LOG_PATH="Logs/${MODEL_PATH}/JBC-${RUN_INDEX}"
 RESULTS_CSV="${LOG_PATH}/results.csv"
 INDICES_FILE="${LOG_PATH}/selected_indices.txt"
@@ -60,7 +129,17 @@ gpu_has_memory() {
     local gpu=$1
     local free_mem
     free_mem=$(nvidia-smi -i $gpu --query-gpu=memory.free --format=csv,noheader,nounits)
+
+    echo "GPU $gpu free memory (before return): '$free_mem'"
+
+    # Ensure it's a number
+    if [[ ! "$free_mem" =~ ^[0-9]+$ ]]; then
+        echo "GPU $gpu: invalid memory info, skipping..."
+        return 1
+    fi
+
     [[ "$free_mem" -ge "$GPU_MEMORY" ]]
+
 }
 
 lock_gpu() {
