@@ -594,9 +594,9 @@ class LocalSpeechLLM(LLM):
                             )
 
         # audio keyword instead of audios (may need to be updated in the future)
-            inputs = self.processor(text=text_prompt, audio=audios, sampling_rate=self.processor.feature_extractor.sampling_rate, return_tensors="pt", padding=True)
-            inputs = {k: v.to("cuda") for k, v in inputs.items()}
-           
+        inputs = self.processor(text=text, audio=audios, sampling_rate=self.processor.feature_extractor.sampling_rate, return_tensors="pt", padding=True)
+        inputs = {k: v.to("cuda") for k, v in inputs.items()}
+       
         # SPIRIT Defense
         if hasattr(self, 'defence') and self.defence in ['prune', 'bias', 'patch']:
             from BOOST.Attack_GPTFuzzer.gptfuzzer.llm.noise_analyzer import detect_noise_sensitive_neurons
@@ -632,9 +632,9 @@ class LocalSpeechLLM(LLM):
             
         else:
             # otherwise, standard/undefended generation
-                generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
+            generate_ids = self.model.generate(**inputs, max_length=1024)
 
-            generate_ids = generate_ids[:, inputs['input_ids'].size(1):]
+        generate_ids = generate_ids[:, inputs['input_ids'].size(1):]
 
             response = self.processor.batch_decode(
                 generate_ids, 
@@ -687,7 +687,18 @@ class LocalSpeechLLM(LLM):
                                     sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
+        # inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
+        # inputs['input_ids'] = inputs['input_ids'].to("cuda")
+        # inputs.input_ids = inputs.input_ids.to("cuda")
+        # inputs = {k: v.to(self.model.device) for k, v in inputs.items()}  # ✅ ensure same device
+
+
+        # generate_ids = self.model.generate(**inputs, max_length=1024)
+        # generate_ids = generate_ids[:, inputs.input_ids.size(1):]
+
         inputs = self.processor(text=text, audio=audios, sampling_rate=self.processor.feature_extractor.sampling_rate, return_tensors="pt", padding=True)
+        # inputs['input_ids'] = inputs['input_ids'].to("cuda")
+        # inputs.input_ids = inputs.input_ids.to("cuda")
         device = next(self.model.parameters()).device
         inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
         input_ids_length = inputs['input_ids'].size(1)
@@ -726,7 +737,7 @@ class LocalSpeechLLM(LLM):
             
         else:
             # Standard, undefended batched generation
-            generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
+            generate_ids = self.model.generate(**inputs, max_length=1024)
         # ---------------------------------------------
 
         # Remove the input tokens from the generated output
