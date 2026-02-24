@@ -17,6 +17,7 @@ httpx_logger.setLevel(logging.WARNING)
 from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
 import re
 
 def extract_label_categories_refusal(content):
@@ -43,7 +44,7 @@ def evaluate_generation_strongreject(question, generation):
 def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
     
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
+    if args.defence != '' and args.defence != 'guard' and args.defence != 'None' and args.defence != 'smoothllm':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
@@ -120,6 +121,10 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
                 target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
             else:
                 target_model = LocalLLM(args.target_model, system_message=system_message)
+
+        if args.defence == "smoothllm":
+            base_model = target_model
+            target_model = smoothllmWrapper(base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=2)
 
         if args.few_shot_num == 1:
             ICL = one_shot

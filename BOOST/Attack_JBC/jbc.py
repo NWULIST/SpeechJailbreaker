@@ -14,6 +14,7 @@ from typing import NamedTuple
 from datasets import load_dataset
 import json
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
 import re
 
 class EvalResult(NamedTuple):
@@ -40,15 +41,15 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     #seeing how much information is being read from huggingface
     #print(f"Total Samples from AABENCH: {len(ds)}")
 
-    relative_path = ds['prompt_audio_path'][args.index]
-    origin_question_audio = os.path.join(base_dir, relative_path)
-    origin_question = ds['prompt_text'][args.index]
+    # relative_path = ds['prompt_audio_path'][args.index]
+    # origin_question_audio = os.path.join(base_dir, relative_path)
+    # origin_question = ds['prompt_text'][args.index]
 
-    args.question = origin_question_audio
-    print("The question is: ", origin_question)
+    # args.question = origin_question_audio
+    # print("The question is: ", origin_question)
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != "None":
+    if args.defence != '' and args.defence != 'guard' and args.defence != "None" and args.defence != 'smoothllm':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(f"Loading defense from: {defence_path}")
         
@@ -66,6 +67,11 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
 
 
     target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+
+    if args.defence == "smoothllm":
+        base_model = target_model
+        target_model = smoothllmWrapper(base_model, pert_type="RandomPatchPerturbation", pert_pct=0.1, num_copies=3)
+
     print("Target model loaded successfully!")
     
     # Setup evaluator
@@ -95,7 +101,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     # ============================================================
     # PROCESS EACH INDEX IN THE BATCH
     # ============================================================
-    for idx in indices_to_process:
+    for idx in args.indices_list:
         print(f"\n{'='*60}")
         print(f"Processing index {idx}")
         print(f"{'='*60}")
