@@ -70,7 +70,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
 
     if args.defence == "smoothllm":
         base_model = target_model
-        target_model = smoothllmWrapper(base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=3)
+        target_model = smoothllmWrapper(base_model, pert_type="RandomPatchPerturbation", pert_pct=0.1, num_copies=3)
 
     print("Target model loaded successfully!")
     
