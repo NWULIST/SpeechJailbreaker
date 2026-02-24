@@ -48,7 +48,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     # print("The question is: ", origin_question)
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != "None":
+    if args.defence != '' and args.defence != 'guard' and args.defence != "None" and args.defence != 'smoothllm':
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(f"Loading defense from: {defence_path}")
         
@@ -66,6 +66,11 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
 
 
     target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+
+    if args.defence == "smoothllm":
+        base_model = target_model
+        target_model = smoothllmWrapper(base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=2)
+
     print("Target model loaded successfully!")
     
     # Setup evaluator
