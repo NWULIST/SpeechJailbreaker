@@ -95,7 +95,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     # ============================================================
     # PROCESS EACH INDEX IN THE BATCH
     # ============================================================
-    for idx in indices_to_process:
+    for idx in args.indices_list:
         print(f"\n{'='*60}")
         print(f"Processing index {idx}")
         print(f"{'='*60}")

@@ -25,15 +25,14 @@ GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
 #change to 0 since I am using only one gpu 
 NUM_GPU_SEARCH=0
 
-#NUM_TASKS=4723                  # Total tasks to run
-
 #start with 2 just to gauge that it works
 NUM_TASKS=2
 
-#MAX_PARALLEL=2                 # Maximum jobs to run simultaneously
-
 #testing on one gpu 
 MAX_PARALLEL=1
+
+BATCH_SIZE=1
+DATASET_SIZE =4724
 
 RETRY_DELAY=5
 LOCK_DIR="/tmp/gpu_locks"
@@ -73,6 +72,12 @@ while [[ $# -gt 0 ]]; do
       NUM_TASKS="$2"
       shift 2
       ;;
+    
+    --batch_size)
+      BATCH_SIZE="$2"
+      shift 2
+      ;;
+      
     --defence)
       defence="$2"
       shift 2
