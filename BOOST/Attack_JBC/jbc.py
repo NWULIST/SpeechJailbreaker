@@ -40,12 +40,12 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     #seeing how much information is being read from huggingface
     #print(f"Total Samples from AABENCH: {len(ds)}")
 
-    relative_path = ds['prompt_audio_path'][args.index]
-    origin_question_audio = os.path.join(base_dir, relative_path)
-    origin_question = ds['prompt_text'][args.index]
+    # relative_path = ds['prompt_audio_path'][args.index]
+    # origin_question_audio = os.path.join(base_dir, relative_path)
+    # origin_question = ds['prompt_text'][args.index]
 
-    args.question = origin_question_audio
-    print("The question is: ", origin_question)
+    # args.question = origin_question_audio
+    # print("The question is: ", origin_question)
 
     system_message = None
     if args.defence != '' and args.defence != 'guard' and args.defence != "None":

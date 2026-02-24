@@ -4,7 +4,7 @@ import subprocess
 import os
 import sys
 import os
-os.environ["OPENAI_API_KEY"] = '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'
+os.environ["OPENAI_API_KEY"] = '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'
 
 ATTACK_TO_SCRIPT = {
     'pgd': 'run_PGD.sh',
@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--num_tasks', type=int, default=2, help='Number of tasks to run in parallel (default: 3)')
     parser.add_argument('--batch_size', type=int, default=1, help='number of prompts to run per batch')
     parser.add_argument('--guard', required=False, default=None, help='Guard model to run')
+    parser.add_argument('--seed', type=int, required=False, default=None, help='seed input for reproducibility in batched runs')
     parser.add_argument('--few_shot_num',type=int, required=False, default=0, help='Number of example prompts to show to model')
     args = parser.parse_args()
 
@@ -48,6 +49,9 @@ def main():
     #if few shots is enabled -> addd it to input to be passed on
     if args.attack == 'ica' and args.few_shot_num > 0:
         subprocess_input += ["--few_shot_num", str(args.few_shot_num)]
+    
+    if args.seed is not None:
+        subprocess_input += ['--seed', str(args.seed)]
 
 
     print(f"[INFO] Running {script_name} under Defence {args.defence} with MODEL_PATH={args.model_path} and EVALUATION={args.evaluation}")
