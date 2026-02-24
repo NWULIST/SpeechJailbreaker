@@ -591,7 +591,7 @@ class LocalSpeechLLM(LLM):
                                 sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
-            inputs = self.processor(text=text_prompt, audios=audios, return_tensors="pt", padding=True)
+            inputs = self.processor(text=text_prompt, audio=audios, return_tensors="pt", padding=True)
             inputs = {k: v.to("cuda") for k, v in inputs.items()}
            
             generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
@@ -648,7 +648,7 @@ class LocalSpeechLLM(LLM):
                                     sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
-        inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
+        inputs = self.processor(text=text, audio=audios, return_tensors="pt", padding=True)
         device = next(self.model.parameters()).device
         inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
         input_ids_length = inputs['input_ids'].size(1)
