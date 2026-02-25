@@ -328,7 +328,7 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
                 y_audio, sr = librosa.load(audio_bytes, sr=processor.feature_extractor.sampling_rate)
                 audios.append(y_audio)
                 
-                inputs = processor(text=text_prompt, audios=audios, return_tensors="pt", padding=True)
+                inputs = processor(text=text_prompt, audio=audios, return_tensors="pt", padding=True)
                 inputs = {k: v.to(device) for k, v in inputs.items()}
                 
                 # Get embeddings
