@@ -4,7 +4,9 @@ import subprocess
 import os
 import sys
 import os
-os.environ["OPENAI_API_KEY"] = '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'
+
+from dotenv import load_dotenv
+load_dotenv()
 
 ATTACK_TO_SCRIPT = {
     'pgd': 'run_PGD.sh',
@@ -38,11 +40,6 @@ def main():
 
     script_name = ATTACK_TO_SCRIPT[args.attack]
     script_path = os.path.join(os.path.dirname(__file__), script_name)
-
-    # # Prepare environment variables
-    # env = os.environ.copy()
-    # env['MODEL_PATH'] = args.model_path
-    # env['EVALUATION'] = args.evaluation
 
     subprocess_input = [script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--batch_size", str(args.batch_size), "--defence", str(args.defence), '--guard', str(args.guard)]
 
