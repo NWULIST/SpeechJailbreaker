@@ -47,6 +47,7 @@ dependencies:
       - sympy
       - tqdm>=4.64.0
       - numpy>=1.21.0
+      - datasets
       - pandas>=1.5.0
       - matplotlib>=3.5.0
       - librosa>=0.10.0

@@ -23,17 +23,16 @@ GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
 #NUM_GPU_SEARCH=7             # Highest GPU index to search
 
 #change to 0 since I am using only one gpu 
-NUM_GPU_SEARCH=0
-
-#NUM_TASKS=4723                  # Total tasks to run
+NUM_GPU_SEARCH=2
 
 #start with 2 just to gauge that it works
-NUM_TASKS=2
-
-#MAX_PARALLEL=2                 # Maximum jobs to run simultaneously
+#NUM_TASKS=2
 
 #testing on one gpu 
-MAX_PARALLEL=1
+MAX_PARALLEL=3
+
+BATCH_SIZE=1
+DATASET_SIZE=4724
 
 RETRY_DELAY=5
 LOCK_DIR="/tmp/gpu_locks"
@@ -73,6 +72,12 @@ while [[ $# -gt 0 ]]; do
       NUM_TASKS="$2"
       shift 2
       ;;
+    
+    --batch_size)
+      BATCH_SIZE="$2"
+      shift 2
+      ;;
+      
     --defence)
       defence="$2"
       shift 2
@@ -81,6 +86,12 @@ while [[ $# -gt 0 ]]; do
       guard="$2"
       shift 2
       ;;
+
+    --seed)
+      RANDOM_SEED="$2"
+      shift 2
+      ;;
+
     --harmful_dataset)
       HARMFUL_DATASET="$2"
       shift 2
@@ -185,6 +196,11 @@ run_batch_job_with_indices() {
     ###########################################
     # Run batch processing with specific indices
     ###########################################
+    SEED_ARG=""
+    if [[ -n "$RANDOM_SEED" ]]; then
+    SEED_ARG="--seed $RANDOM_SEED"
+    fi
+
     CUDA_VISIBLE_DEVICES=$gpu python -u "$PYTHON_SCRIPT" \
         --target_model "$MODEL_PATH" \
         --defence "$defence" \
@@ -192,6 +208,7 @@ run_batch_job_with_indices() {
         --guard "$guard" \
         --indices "$indices_str" \
         --max-new-tokens 256 \
+        $SEED_ARG\
         &> "$log_file"
 
     # Extract results for each item in the batch
@@ -262,7 +279,7 @@ num_batches=$(( (NUM_TASKS + BATCH_SIZE - 1) / BATCH_SIZE ))
 echo "Launching $num_batches batches (batch size: $BATCH_SIZE) with maximum $MAX_PARALLEL in parallel..."
 
 batch_id=1
-for ((i=0; i<NUM_TASKS; i+=BATCH_SIZE)); do
+for ((i=0; i<$NUM_TASKS; i+=$BATCH_SIZE)); do
     # Get slice of indices for this batch
     batch_indices=("${SELECTED_INDICES[@]:i:BATCH_SIZE}")
     
