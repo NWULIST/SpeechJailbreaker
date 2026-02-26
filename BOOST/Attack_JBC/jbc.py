@@ -15,7 +15,18 @@ from datasets import load_dataset
 import json
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
+from Defenses.SPIRIT.spirit_wrapper import SPIRITWrapper
 import re
+
+# Add SPIRIT Defense
+SPIRIT_DEFENCES = {"spirit_bias", "spirit_prune", "spirit_patch"}
+
+def _is_spirit_defence(name: str) -> bool:
+    return name in SPIRIT_DEFENCES
+
+def _spirit_method(name: str) -> str:
+    return name.replace("spirit_", "")
+
 
 class EvalResult(NamedTuple):
     success: bool
@@ -37,19 +48,14 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                                quotechar='"', escapechar='\\', dtype=str)['text'].tolist()
     
     ds = load_dataset("NWULIST/AABench", "default")['train']
-    
-    #seeing how much information is being read from huggingface
-    #print(f"Total Samples from AABENCH: {len(ds)}")
-
-    # relative_path = ds['prompt_audio_path'][args.index]
-    # origin_question_audio = os.path.join(base_dir, relative_path)
-    # origin_question = ds['prompt_text'][args.index]
-
-    # args.question = origin_question_audio
-    # print("The question is: ", origin_question)
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != "None" and args.defence != 'smoothllm':
+    # bypass JSON loading for SmoothLLM and SPIRIT
+    if (args.defence != ''
+            and args.defence != 'guard'
+            and args.defence != "None"
+            and args.defence != 'smoothllm'
+            and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(f"Loading defense from: {defence_path}")
         
@@ -68,9 +74,18 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
 
     target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
 
+    # Defense wrapping for SmoothLLM and SPIRIT
+
     if args.defence == "smoothllm":
         base_model = target_model
         target_model = smoothllmWrapper(base_model, pert_type="RandomPatchPerturbation", pert_pct=0.1, num_copies=3)
+
+    if _is_spirit_defence(args.defence):
+        print(f"[SPIRIT] Wrapping target model with method='{_spirit_method(args.defence)}'")
+        target_model = SPIRITWrapper(
+            target_model,
+            method=_spirit_method(args.defence),
+        )
 
     print("Target model loaded successfully!")
     
@@ -81,8 +96,6 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     if evaluation == 'strongreject':
         predictor = evaluate_generation_strongreject
     else:
-        # For non-strongreject, we need the OpenAI predictor
-        # This will be created per-question since it depends on the question
         predictor = None
     
     # Load guard model once if needed (outside the loop)
@@ -118,7 +131,6 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
             current_system_message = system_message
             if args.defence == 'self-reminder' and system_message:
                 current_system_message = system_message.replace("{QUESTION}", origin_question)
-                # Update the model's system message for this question
                 target_model.system_message = current_system_message
             
             # Setup predictor for non-strongreject evaluation
@@ -175,7 +187,6 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                         print(f"Guard output: {content}")
                         
                         if 'safe' not in content.lower():
-                            # Guard blocked it, score as 0
                             writer.writerow([jbc_id, response, 0])
                             continue
                     
@@ -205,12 +216,10 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                         if args.early_stop and result == 1:
                             break
                 
-                # Output result for this index in the expected format
                 print(f"\nRESULT:{idx},{total_score},{total_count}", flush=True)
         
         except Exception as e:
             print(f"ERROR processing index {idx}: {str(e)}", file=sys.stderr)
             import traceback
             traceback.print_exc()
-            # Output zero score for failed index
             print(f"RESULT:{idx},0,0", flush=True)
