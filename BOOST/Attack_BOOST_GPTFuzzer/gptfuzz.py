@@ -20,11 +20,22 @@ import logging
 from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from datasets import load_dataset
+from Defenses.SPIRIT.spirit_wrapper import SPIRITWrapper
 
 
 httpx_logger: logging.Logger = logging.getLogger("httpx")
 # disable httpx logging
 httpx_logger.setLevel(logging.WARNING)
+
+# Add SPIRIT Defense
+SPIRIT_DEFENCES = {"spirit_bias", "spirit_prune", "spirit_patch"}
+
+def _is_spirit_defence(name: str) -> bool:
+    return name in SPIRIT_DEFENCES
+
+def _spirit_method(name: str) -> str:
+    return name.replace("spirit_", "")
+
 
 class EvalResult(NamedTuple):
     success: bool
@@ -40,16 +51,18 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     initial_seed = pd.read_csv(args.seed_path)['text'].tolist()
 
     openai_model = OpenAILLM(args.model_path, args.openai_key)
-    # target_model = LocalLLM(args.target_model) 
 
-    # Login using e.g. `huggingface-cli login` to access this dataset
     ds = load_dataset("NWULIST/AABench", "default")['train']
     relative_path = ds['prompt_audio_path'][args.index]
     origin_question_audio = os.path.join(base_dir, relative_path)
     origin_question = ds['prompt_text'][args.index]
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != "None":
+    # bypass JSON loading for SPIRIT and other defenses
+    if (args.defence != ''
+            and args.defence != 'guard'
+            and args.defence != "None"
+            and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
@@ -75,9 +88,13 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     else:
        target_model = LocalLLM(args.target_model, system_message=system_message)
     
-    
-    
-
+    # Defense wrapping for SPIRIT
+    if _is_spirit_defence(args.defence):
+        print(f"[SPIRIT] Wrapping target model with method='{_spirit_method(args.defence)}'")
+        target_model = SPIRITWrapper(
+            target_model,
+            method=_spirit_method(args.defence),
+        )
 
     evaluation = getattr(args, 'evaluation', 'default')
     print("The evaluation is: ", evaluation)
@@ -96,13 +113,11 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
         predictor = OpenAILLM(args.model_path, args.openai_key, system_message=predict_system_message)
        
 
-    # save the optim prompts into a csv file
     save_path = f'./Results/{args.target_model}/GPTFuzzer-{args.run_index}/{args.index}.csv'
     if args.add_eos:
         save_path = f'./Results/{args.target_model}/GPTFuzzer_eos-{args.run_index}/{args.index}.csv'
     
     print("The save path is: ", save_path)
-    # check if the directory exists
     if not os.path.exists(os.path.dirname(save_path)):
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
@@ -110,7 +125,6 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     fuzzer = GPTFuzzer(
         questions=[origin_question_audio],
         questions_txt = [origin_question],
-        # target_model=openai_model,
         target=target_model,
         predictor=predictor,
         initial_seed=initial_seed,
