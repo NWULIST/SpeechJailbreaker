@@ -18,7 +18,20 @@ from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
+from Defenses.SPIRIT.spirit_wrapper import SPIRITWrapper
 import re
+
+# Add SPIRIT Defense
+SPIRIT_DEFENCES = {"spirit_bias", "spirit_prune", "spirit_patch"}
+
+
+def _is_spirit_defence(name: str) -> bool:
+    return name in SPIRIT_DEFENCES
+
+
+def _spirit_method(name: str) -> str:
+    return name.replace("spirit_", "")
+
 
 def extract_label_categories_refusal(content):
     safe_pattern = r"Safety: (Safe|Unsafe|Controversial)"
@@ -44,7 +57,12 @@ def evaluate_generation_strongreject(question, generation):
 def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
     
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != 'None' and args.defence != 'smoothllm':
+    # bypass JSON loading for SmoothLLM and Spirit
+    if (args.defence != ''
+            and args.defence != 'guard'
+            and args.defence != 'None'
+            and args.defence != 'smoothllm'
+            and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
@@ -122,9 +140,18 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
             else:
                 target_model = LocalLLM(args.target_model, system_message=system_message)
 
+        # Defense wrapping for SmoothLLM and SPIRIT
+
         if args.defence == "smoothllm":
             base_model = target_model
             target_model = smoothllmWrapper(base_model, pert_type="RandomSwapPerturbation", pert_pct=0.1, num_copies=2)
+
+        if _is_spirit_defence(args.defence):
+            print(f"[SPIRIT] Wrapping target model with method='{_spirit_method(args.defence)}'")
+            target_model = SPIRITWrapper(
+                target_model,
+                method=_spirit_method(args.defence),
+            )
 
         if args.few_shot_num == 1:
             ICL = one_shot
@@ -187,15 +214,11 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
                     if result.success == True:
                         print("Success!")
                     writer.writerow([response, result.score])
-                    # if args.early_stop and result.success == True:
-                    #     break
                 else:
                     result = predictor.predict([response], origin_question)[0]
                     if result == 1:
                         print("Success!")
                     writer.writerow([response, result])
-                    # if args.early_stop and result == 1:
-                    #     break
             else:
                 if evaluation == 'strongreject':
                     result = evaluate_generation_strongreject(origin_question, response)
@@ -208,4 +231,3 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
                     if result == 1:
                         print("Success!")
                     writer.writerow([response, 0])
-                    

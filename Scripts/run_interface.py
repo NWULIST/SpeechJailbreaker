@@ -4,7 +4,16 @@ import subprocess
 import os
 import sys
 import os
-os.environ["OPENAI_API_KEY"] = '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'
+
+from dotenv import load_dotenv
+load_dotenv()
+
+# Map short SPIRIT defence names to the prefixed names expected by attack scripts
+SPIRIT_DEFENCE_MAP = {
+    'bias':  'spirit_bias',
+    'prune': 'spirit_prune',
+    'patch': 'spirit_patch',
+}
 
 ATTACK_TO_SCRIPT = {
     'pgd': 'run_PGD.sh',
@@ -36,15 +45,15 @@ def main():
         print("--few_shot_num will be ignored fornon-ICA model")
         args.few_shot_num = 0
 
+    # Resolve short SPIRIT defence names
+    defence = args.defence
+    if defence in SPIRIT_DEFENCE_MAP:
+        defence = SPIRIT_DEFENCE_MAP[defence]
+
     script_name = ATTACK_TO_SCRIPT[args.attack]
     script_path = os.path.join(os.path.dirname(__file__), script_name)
 
-    # # Prepare environment variables
-    # env = os.environ.copy()
-    # env['MODEL_PATH'] = args.model_path
-    # env['EVALUATION'] = args.evaluation
-
-    subprocess_input = [script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--batch_size", str(args.batch_size), "--defence", str(args.defence), '--guard', str(args.guard)]
+    subprocess_input = [script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--batch_size", str(args.batch_size), "--defence", str(defence), '--guard', str(args.guard)]
 
     #if few shots is enabled -> addd it to input to be passed on
     if args.attack == 'ica' and args.few_shot_num > 0:

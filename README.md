@@ -126,6 +126,9 @@ conda env create -f environment.yml
 # Activate the environment
 conda activate xllm_env
 
+# Install vllm
+pip install vllm
+
 # Run the attack
 
 ```
