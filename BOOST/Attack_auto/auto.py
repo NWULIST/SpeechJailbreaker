@@ -18,6 +18,7 @@ from autoattack import AutoAttack
 import torch
 import numpy as np
 from torch.nn import CrossEntropyLoss
+from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
 
 # Add SPIRIT Defense
 from Defenses.SPIRIT.spirit_wrapper import SPIRITWrapper
@@ -108,6 +109,7 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
     if (args.defence != ''
             and args.defence != 'guard'
             and args.defence != "None"
+            and args.defence != "smoothllm"
             and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(f"Loading defense from: {defence_path}")
@@ -226,6 +228,11 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
             method=spirit_method,
         )
         print(f"[SPIRIT] Defence active — method='{spirit_method}'")
+
+    #Apply Smoothllm defence if given
+    if args.defence == "smoothllm":
+        base_model = target_model
+        target_model = smoothllmWrapper(base_model, pert_type="RandomPatchPerturbation", pert_pct=0.1, num_copies=3)
 
     # Setup evaluator
     evaluation = getattr(args, 'evaluation', 'default')
