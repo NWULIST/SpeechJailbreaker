@@ -301,10 +301,18 @@ done
 # Wait for all remaining batches
 wait
 
-# Compute total ASR
+# Compute total ASR(per attempt)
 total_score=$(awk -F, 'NR>1 {sum+=$2} END {print sum}' "$RESULTS_CSV")
 total_count=$(awk -F, 'NR>1 {sum+=$3} END {print sum}' "$RESULTS_CSV")
 total_ASR=$(awk -v s="$total_score" -v c="$total_count" 'BEGIN {print (c>0 ? s/c : 0)}')
 
-echo "TOTAL_ASR,$total_ASR" >> "$RESULTS_CSV"
-echo "All batches completed. TOTAL_ASR=$total_ASR"
+echo "PER_ATTEMPT_ASR,$total_ASR" >> "$RESULTS_CSV"
+echo "All batches completed. PER_ATTEMPT_ASR=$total_ASR"
+
+#Compute total ASR(per prompt)
+total_prompts=$(awk -F, 'NR>1 {count++} END {print count}' "$RESULTS_CSV")
+successful_prompts=$(awk -F, 'NR>1 && $2>0 {count++} END {print count}' "$RESULTS_CSV")
+prompt_ASR=$(awk -v s="$successful_prompts" -v p="$total_prompts" 'BEGIN {print (p>0 ? s/p : 0)}')
+
+echo "PER_PROMPT_ASR,$prompt_ASR" >> "$RESULTS_CSV"
+echo "All batches completed. PER_PROMPT_ASR=$prompt_ASR"
