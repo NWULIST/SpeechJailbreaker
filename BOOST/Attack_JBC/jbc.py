@@ -78,10 +78,11 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
 
     if args.defence == "smoothllm":
         base_model = target_model
-        selected_pert = "RandomPatchPerturbation"
-        selected_num_copies = 3
-        target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=0.1, num_copies=selected_num_copies)
-        print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies")
+        selected_pert = "RandomSwapPerturbation"
+        selected_num_copies = 6
+        selected_pert_pct = 0.15
+        target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=selected_pert_pct, num_copies=selected_num_copies)
+        print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")
 
     if _is_spirit_defence(args.defence):
         print(f"[SPIRIT] Wrapping target model with method='{_spirit_method(args.defence)}'")

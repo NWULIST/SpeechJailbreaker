@@ -53,4 +53,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_random_seed(args.seed)  # Set random seed
     args.openai_key = openai_key
+
+    # Parse indices
+    if args.indices:
+        args.indices_list = [int(i) for i in args.indices.split(',')]
+    elif args.start_index is not None and args.end_index is not None:
+        # Backward compatibility with range-based approach
+        args.indices_list = list(range(args.start_index, args.end_index + 1))
+    else:
+        raise ValueError("Must provide either --indices or both --start_index and --end_index")
+    
+    #process batch of indices
     ICA_attack(args)

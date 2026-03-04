@@ -15,9 +15,11 @@ FEW_SHOT_NUM=0
 GPU_MEMORY=60000
 NUM_GPU_SEARCH=0
 
-NUM_TASKS=2
+#NUM_TASKS=2
 MAX_PARALLEL=1
 
+BATCH_SIZE=1
+DATASET_SIZE=4724
 
 RETRY_DELAY=5
 #original
@@ -64,6 +66,12 @@ while [[ $# -gt 0 ]]; do
       NUM_TASKS="$2"
       shift 2
       ;;
+
+    --batch_size)
+      BATCH_SIZE="$2"
+      shift 2
+      ;;
+      
     --defence)
       defence="$2"
       shift 2
@@ -101,6 +109,7 @@ else
     LOG_PATH="Logs/${MODEL_PATH}/ICA-${RUN_INDEX}"
 fi
 
+INDICES_FILE="${LOG_PATH}/selected_indices.txt"
 RESULTS_CSV="${LOG_PATH}/results.csv"
 
 # Create the log directory if it does not exist
@@ -156,7 +165,7 @@ run_batch_job_with_indices() {
     local indices_str=$1
     local batch_id=$2
 
-    echo "Batch $batch_id (indices: $indices_str) fs=$shot: waiting for a free GPU..."
+    echo "Batch $batch_id (indices: $indices_str) fs=$: waiting for a free GPU..."
     local gpu=-1
 
     while true; do
@@ -175,7 +184,7 @@ run_batch_job_with_indices() {
         sleep $RETRY_DELAY
     done
 
-    echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str) fs=$shot..."
+    echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str) fs=$FEW_SHOT_NUM..."
     local log_file="${LOG_PATH}/batch_${batch_id}.log"
 
     ###########################################
@@ -196,7 +205,7 @@ run_batch_job_with_indices() {
       --guard "$guard" \
       --indices "$indices_str"\
       $SEED_ARG\
-      &> "$log"
+      &> "$log_file"
 
     # extract RESULT lines later if desired
     while IFS= read -r line; do
@@ -291,7 +300,7 @@ wait
 
 
 # (sum of 'result' column)
-total_score=$(awk -F, 'NR>1 {sum+=$2} END {print sum+0}' "$RESULTS_CSV")
+total_score=$(awk -F, 'NR>1 && $2>0 {count++} END {print count+0}' "$RESULTS_CSV")
 # total_count (number of jobs / lines)
 total_count=$(awk -F, 'NR>1 {count++} END {print count+0}' "$RESULTS_CSV")
 total_ASR=$(awk -v s="$total_score" -v c="$total_count" 'BEGIN {print (c>0 ? s/c : 0)}')
