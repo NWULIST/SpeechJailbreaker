@@ -16,26 +16,30 @@ PYTHON_SCRIPT="Experiments/jbc_exp.py"
 
 MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="strongreject"
-RUN_INDEX=2
+RUN_INDEX="$(date +%Y-%m-%d_%H-%M-%S)_$RANDOM"
 defence=""
 guard=""
 GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
 #NUM_GPU_SEARCH=7             # Highest GPU index to search
 
 #change to 0 since I am using only one gpu 
-NUM_GPU_SEARCH=2
+NUM_GPU_SEARCH=1
 
 #start with 2 just to gauge that it works
 #NUM_TASKS=2
 
 #testing on one gpu 
-MAX_PARALLEL=3
+MAX_PARALLEL=2
 
 BATCH_SIZE=1
 DATASET_SIZE=4724
 
 RETRY_DELAY=5
-LOCK_DIR="/tmp/gpu_locks"
+#original
+#LOCK_DIR="/tmp/gpu_locks"
+
+#for dealing with stale lock issue
+LOCK_DIR="/tmp/gpu_locks$(id -u)"
 
 #add parsing so logging files are correctly labeled for the appropriate model
 while [[ $# -gt 0 ]]; do
