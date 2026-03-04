@@ -6,7 +6,7 @@ import torch
 
 class smoothllmWrapper:
     #contructor that takes in LocalSpeechLLM, perturb method, % of characters to perturb, & number of samples to take 
-    def __init__(self, base_model, pert_type="RandomPatchPerturbation", pert_pct=0.1, num_copies=3):
+    def __init__(self, base_model, pert_type="RandomSwapPerturbation", pert_pct=0.15, num_copies=6):
         """
         base_model: represents inputted LocalSpeechLLM
         """

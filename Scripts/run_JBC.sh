@@ -16,26 +16,30 @@ PYTHON_SCRIPT="Experiments/jbc_exp.py"
 
 MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="strongreject"
-RUN_INDEX=2
+RUN_INDEX="$(date +%Y-%m-%d_%H-%M-%S)_$RANDOM"
 defence=""
 guard=""
 GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
 #NUM_GPU_SEARCH=7             # Highest GPU index to search
 
 #change to 0 since I am using only one gpu 
-NUM_GPU_SEARCH=2
+NUM_GPU_SEARCH=1
 
 #start with 2 just to gauge that it works
 #NUM_TASKS=2
 
 #testing on one gpu 
-MAX_PARALLEL=3
+MAX_PARALLEL=2
 
 BATCH_SIZE=1
 DATASET_SIZE=4724
 
 RETRY_DELAY=5
-LOCK_DIR="/tmp/gpu_locks"
+#original
+#LOCK_DIR="/tmp/gpu_locks"
+
+#for dealing with stale lock issue
+LOCK_DIR="/tmp/gpu_locks$(id -u)"
 
 #add parsing so logging files are correctly labeled for the appropriate model
 while [[ $# -gt 0 ]]; do
@@ -301,10 +305,17 @@ done
 # Wait for all remaining batches
 wait
 
-# Compute total ASR
+# Compute total ASR(per attempt)
 total_score=$(awk -F, 'NR>1 {sum+=$2} END {print sum}' "$RESULTS_CSV")
 total_count=$(awk -F, 'NR>1 {sum+=$3} END {print sum}' "$RESULTS_CSV")
 total_ASR=$(awk -v s="$total_score" -v c="$total_count" 'BEGIN {print (c>0 ? s/c : 0)}')
 
-echo "TOTAL_ASR,$total_ASR" >> "$RESULTS_CSV"
-echo "All batches completed. TOTAL_ASR=$total_ASR"
+#Compute total ASR(per prompt)
+total_prompts=$(awk -F, 'NR>1 {count++} END {print count}' "$RESULTS_CSV")
+successful_prompts=$(awk -F, 'NR>1 && $2>0 {count++} END {print count}' "$RESULTS_CSV")
+prompt_ASR=$(awk -v s="$successful_prompts" -v p="$total_prompts" 'BEGIN {print (p>0 ? s/p : 0)}')
+
+echo "PER_ATTEMPT_ASR,$total_ASR" >> "$RESULTS_CSV"
+echo "All batches completed. PER_ATTEMPT_ASR=$total_ASR"
+echo "PER_PROMPT_ASR,$prompt_ASR" >> "$RESULTS_CSV"
+echo "All batches completed. PER_PROMPT_ASR=$prompt_ASR"

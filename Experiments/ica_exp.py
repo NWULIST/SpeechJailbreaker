@@ -46,12 +46,22 @@ if __name__ == "__main__":
     parser.add_argument('--targets_dataset', type=str, default='Dataset/harmful_targets.csv',
                         help='Path to the harmful targets dataset')
     parser.add_argument('--num_tasks', type=int, default=8)
-    parser.add_argument("--prompt_index", type=int, default=0,
-                    help="Index of the AAbench prompt to run")
+    parser.add_argument('--indices', type=str, default=None, help='Comma-separated list of indices to process')
     parser.add_argument('--evaluation', type=str, default='default', choices=['default', 'strongreject'], help='Evaluation method for attack success: "default" (original) or "strongreject" (use strongreject autograder)')
     add_model_args(parser)
 
     args = parser.parse_args()
     set_random_seed(args.seed)  # Set random seed
     args.openai_key = openai_key
+
+    # Parse indices
+    if args.indices:
+        args.indices_list = [int(i) for i in args.indices.split(',')]
+    elif args.start_index is not None and args.end_index is not None:
+        # Backward compatibility with range-based approach
+        args.indices_list = list(range(args.start_index, args.end_index + 1))
+    else:
+        raise ValueError("Must provide either --indices or both --start_index and --end_index")
+    
+    #process batch of indices
     ICA_attack(args)
