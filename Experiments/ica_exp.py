@@ -46,8 +46,7 @@ if __name__ == "__main__":
     parser.add_argument('--targets_dataset', type=str, default='Dataset/harmful_targets.csv',
                         help='Path to the harmful targets dataset')
     parser.add_argument('--num_tasks', type=int, default=8)
-    parser.add_argument("--prompt_index", type=int, default=0,
-                    help="Index of the AAbench prompt to run")
+    parser.add_argument('--indices', type=str, default=None, help='Comma-separated list of indices to process')
     parser.add_argument('--evaluation', type=str, default='default', choices=['default', 'strongreject'], help='Evaluation method for attack success: "default" (original) or "strongreject" (use strongreject autograder)')
     add_model_args(parser)
 
