@@ -66,3 +66,21 @@ class smoothllmWrapper:
         torch.cuda.empty_cache() 
 
         return self.smoothllm(prompt_input)
+
+    def generate_batch(self, questions, prompts, max_tokens=512):
+        """
+        Batch interface required by GPTFuzzer.
+        questions: list of audio paths
+        prompts: list of text prompts
+        """
+        outputs = []
+
+        for question_audio, prompt_text in zip(questions, prompts):
+            response = self.generate(
+                question_audio,
+                prompt_text,
+                max_tokens=max_tokens
+            )
+            outputs.append(response)
+
+        return outputs
