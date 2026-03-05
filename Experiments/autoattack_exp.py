@@ -4,10 +4,6 @@ from dotenv import load_dotenv
 load_dotenv()
 openai_key = os.getenv('OPENAI_API_KEY')
 
-# Add the path to the BOOST folder to sys.path
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-# # Get the project root (parent of Experiments directory)
-# project_root = os.path.dirname(current_dir)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.insert(0, project_root)
@@ -27,7 +23,6 @@ def set_random_seed(seed=42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
-    # For deterministic behavior (may impact performance)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -38,8 +33,10 @@ if __name__ == "__main__":
     # Basic parameters
     parser.add_argument('--defence', type=str, default='', help='defence file location')
     parser.add_argument('--guard', type=str, default=None, help='guard model')
-    parser.add_argument('--index', type=int, default=0,
-                        help='The index of the question')
+    parser.add_argument('--index', type=int, default=None,
+                        help='Single index (legacy, use --indices instead)')
+    parser.add_argument('--indices', type=str, default=None,
+                        help='Comma-separated list of indices to process')
     parser.add_argument('--model_path', type=str, default='gpt-4-1106-preview',
                         help='Evaluator model path')
     parser.add_argument('--target_model', type=str, default='google/gemma-7b-it',
@@ -82,7 +79,7 @@ if __name__ == "__main__":
     # Evaluation method
     parser.add_argument('--evaluation', type=str, default='default',
                         choices=['default', 'strongreject'],
-                        help='Evaluation method for attack success: "default" or "strongreject"')
+                        help='Evaluation method for attack success')
     # Base directory for audio files
     parser.add_argument('--base_dir', type=str, default='/projects/e33046/AudioJailbreak',
                         help='Base directory for audio files')
@@ -96,22 +93,24 @@ if __name__ == "__main__":
     args.claude_key = claude_key
     args.gemini_key = gemini_key
     
-    # Prepare args for auto_attack
-    args.indices_list = [args.index]
+    # Parse indices — support both --indices (batch) and --index (legacy)
+    if args.indices:
+        args.indices_list = [int(i) for i in args.indices.split(',')]
+    elif args.index is not None:
+        args.indices_list = [args.index]
+    else:
+        raise ValueError("Must provide either --indices or --index")
 
     print("=" * 60)
     print("AutoAttack Experiment Configuration")
     print("=" * 60)
-    print(f"Index: {args.index}")
+    print(f"Indices: {args.indices_list}")
     print(f"Target Model: {args.target_model}")
-    print(f"Evaluator Model: {args.model_path}")
+    print(f"Defence: {args.defence}")
     print(f"Norm: {args.norm}")
     print(f"Epsilon: {args.eps}")
     print(f"Version: {args.version}")
-    print(f"Max Queries: {args.max_query}")
-    print(f"Max Jailbreak: {args.max_jailbreak}")
     print(f"Evaluation Method: {args.evaluation}")
-    print(f"Run Index: {args.run_index}")
     print(f"Seed: {args.seed}")
     print("=" * 60)
     print()
