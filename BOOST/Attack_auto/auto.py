@@ -449,6 +449,9 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
                         print("Success!")
                     writer.writerow([prompt, response, result.score])
                     
+                    score = 1 if result.score > 0 else 0
+                    print(f"\nRESULT:{idx},{score},1", flush=True)
+                    
                     if args.early_stop and result.success:
                         break
                 else:
@@ -459,6 +462,9 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
                     total_count += 1
                     writer.writerow([prompt, response, result])
                     
+                    score = 1 if result == 1 else 0
+                    print(f"\nRESULT:{idx},{score},1", flush=True)
+                    
                     if args.early_stop and result == 1:
                         break
         
@@ -466,3 +472,4 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
             print(f"ERROR processing index {idx}: {str(e)}", file=sys.stderr)
             import traceback
             traceback.print_exc()
+            print(f"RESULT:{idx},0,0", flush=True)
