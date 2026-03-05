@@ -53,7 +53,7 @@ if __name__ == "__main__":
                         default="./Dataset/fuzzer_seed.csv", help="The seed path")
     parser.add_argument("--add_eos", action='store_true')
     parser.add_argument("--eos_num", type=int, default=10, help="The number of eos tokens")
-    parser.add_argument("--run_index", type=int, default=0)
+    parser.add_argument("--run_index", type=str, default="0")
     parser.add_argument("--seed", type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--harmful_dataset', type=str, default='Dataset/harmful.csv',
                         help='Path to the harmful questions dataset')
