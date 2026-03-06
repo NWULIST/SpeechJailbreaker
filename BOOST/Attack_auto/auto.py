@@ -390,20 +390,24 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
                 x_orig = input_embeds.clone()
                 y_target = torch.tensor([target_token_id], device=device)
                 
-                #x_adv = adversary.run_standard_evaluation(x_orig, y_target, bs=1)
 
+                x_adv = adversary.run_standard_evaluation(x_orig, y_target, bs=1)
+                
+                # adversarial attack is run and so is smoothllm defense
                 if smoothllm_defense is not None:
                     #Smoothllm needs for each perturbed copy to be processed through audio+text not
                     #after the adversarial embedding has already taken place
+
                     response = smoothllm_defense.generate(
                         audio_path,
-                        text_prompt,
+                        origin_question,
                         max_tokens = args.max_new_tokens
                     )
 
-                else:
 
-                    x_adv = adversary.run_standard_evaluation(x_orig, y_target, bs=1)
+                else:
+                    #if adversarial prompt is placed here -> smoothllm work is ignored
+                    #x_adv = adversary.run_standard_evaluation(x_orig, y_target, bs=1)
                     
                     # SPIRIT: install corrective hooks during generation
                     spirit_handles = []
