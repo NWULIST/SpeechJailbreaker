@@ -122,7 +122,8 @@ class AttackLM():
                 break
 
         if any([output is None for output in valid_outputs]):
-            raise ValueError(f"Failed to generate valid output after {self.max_n_attack_attempts} attempts. Terminating.")
+            #raise ValueError(f"Failed to generate valid output after {self.max_n_attack_attempts} attempts. Terminating.")
+            return None, None
         return valid_outputs, new_adv_prompts
 
     def get_attack(self, convs_list, prompts_list):
@@ -143,6 +144,9 @@ class AttackLM():
         # Convert conv_list to openai format and add the initial message
         processed_convs_list, init_message = self.preprocess_conversation(convs_list, prompts_list)
         valid_outputs, new_adv_prompts = self._generate_attack(processed_convs_list, init_message)
+
+        if not valid_outputs or not new_adv_prompts:
+            return None
 
         for jailbreak_prompt, conv in zip(new_adv_prompts, convs_list):
             # For open source models, we can seed the generation with proper JSON and omit the post message

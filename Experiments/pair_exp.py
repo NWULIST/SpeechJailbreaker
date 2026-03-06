@@ -10,12 +10,13 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.insert(0, project_root)
 import argparse
-import random
 import numpy as np
 import torch
 from BOOST.Attack_PAIR.pair import PAIR_attack
 from fastchat.model import add_model_args
 from BOOST.utils.constants import claude_key, gemini_key
+
+
 
 
 if __name__ == "__main__":
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_streams",
         type = int,
-        default = 2, #TODO changed
+        default = 4, #TODO changed
         help = "Number of concurrent jailbreak conversations. If this is too large, then there may be out of memory errors when running locally. For our experiments, we use 30."
     )
     parser.add_argument(
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_iterations",
         type = int,
-        default = 2,
+        default = 4,
         help = "Number of iterations to run the attack. For our experiments, we use 3."
     )
     parser.add_argument( 
@@ -154,10 +155,24 @@ if __name__ == "__main__":
         default=True,
         help="enable/disable early stop on success"
     )
+    parser.add_argument (
+        '--run_identifier',
+        type=str, 
+        default='test_run',
+        help="add identifier for run"
+    )
+     # Batch processing arguments
+    parser.add_argument('--indices', type=str, default=None, help='Comma-separated list of indices to process')
+    parser.add_argument('--batch_size', type=int, default=10, help='Size of each batch')
+
 
     add_model_args(parser)
 
     args = parser.parse_args()
-    # logger.set_level(args.verbosity)
+
+    # Parse indices
+    if args.indices:
+        args.indices_list = [int(i) for i in args.indices.split(',')]
+
     args.openai_key = openai_key
     PAIR_attack(args)

@@ -12,10 +12,18 @@ defence=""
 guard=""
 # GPU
 GPU_MEMORY=40000
-NUM_GPU_SEARCH=7
-NUM_TASKS=1 # Number of tasks to run in parallel
+NUM_GPU_SEARCH=5
+NUM_TASKS=100 # Number of tasks to run
+
+DATASET_SIZE=4724              # Total size of your dataset
+RANDOM_SEED=42                 # Set to empty string for different samples each run
+BATCH_SIZE=2                 # Process 10 items per GPU (adjust based on memory)
+MAX_PARALLEL=4               # Maximum batches to run simultaneously
+RETRY_DELAY=5
+LOCK_DIR="/tmp/gpu_locks"
 
 
+mkdir -p "$LOCK_DIR"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -53,27 +61,208 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-
-LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
-# Create the log directory if it does not exist
+LOG_PATH="Logs/${MODEL_PATH}/PAIR"
+RESULTS_PATH="Results/${MODEL_PATH}/PAIR"
+# Create the directories if it does not exist
 mkdir -p "$LOG_PATH"
+mkdir -p "$RESULTS_PATH"
+
+run_identifier=$(date +"%Y-%m-%d_%H-%M")
+
+# Output CSV file name
+OUTPUT_FILE="${RESULTS_PATH}/PAIR_${run_identifier}.csv"
+# Create CSV header
+echo "index,origin_question,iteration,stream_id,prompt,target_response,strongreject_score,success" > "$OUTPUT_FILE"
+
+# Verify file creation
+if [[ -f "$OUTPUT_FILE" ]]; then
+    echo "CSV file '$OUTPUT_FILE' created successfully."
+else
+    echo "Error: Failed to create CSV file."
+    exit 1
+fi
 
 
-# Start the jobs with GPU assignment
-for index in $(seq 0 $NUM_TASKS); do
+INDICES_FILE="${LOG_PATH}/selected_indices_${run_identifier}.txt"
 
 
-    (
-        echo "Task $index started on GPU."
-        echo "CMD: python -u $PYTHON_SCRIPT --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index" 
-        echo "CMD: python -u $PYTHON_SCRIPT --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index  > ${LOG_PATH}/${index}.log 2>&1" >> ${LOG_PATH}/${index}.log
-        python -u "$PYTHON_SCRIPT" --target_model $MODEL_PATH --defence $defence --evaluation $EVALUATION --guard $guard --index $index > "${LOG_PATH}/${index}.log" 2>&1
-        echo "Task $index on GPU finished."
-    ) 
+###########################################
+# CLEANUP ON INTERRUPT
+###########################################
+PIDS=()
+cleanup() {
+    echo "Keyboard interrupt detected. Cleaning up..."
+    if [[ ${#PIDS[@]} -gt 0 ]]; then
+        echo "Killing background jobs..."
+        kill -9 "${PIDS[@]}" 2>/dev/null || true
+    fi
+    echo "Removing GPU lock files..."
+    rm -f "$LOCK_DIR"/gpu_*.lock
+    exit 1
+}
+trap cleanup SIGINT SIGTERM
 
-    # Wait for 30 seconds to give the GPU some time to allocate memory
-    sleep 60
+###########################################
+# GPU FUNCTIONS
+###########################################
+get_available_gpus() {
+    seq 0 $NUM_GPU_SEARCH
+}
+
+gpu_has_memory() {
+    local gpu=$1
+    local free_mem
+    free_mem=$(nvidia-smi -i $gpu --query-gpu=memory.free --format=csv,noheader,nounits)
+    echo "$free_mem"
+    [[ "$free_mem" -ge "$GPU_MEMORY" ]]
+}
+
+lock_gpu() {
+    local gpu=$1
+    local lockfile="$LOCK_DIR/gpu_${gpu}.lock"
+    ( set -o noclobber; echo "$$" > "$lockfile") 2>/dev/null
+}
+
+unlock_gpu() {
+    local gpu=$1
+    rm -f "$LOCK_DIR/gpu_${gpu}.lock"
+}
+
+###########################################
+# RUN BATCH JOB
+###########################################
+run_batch_job_with_indices() {
+    local indices_str=$1
+    local batch_id=$2
+    
+    echo "Batch $batch_id (indices: $indices_str): waiting for a free GPU..."
+    local gpu=-1
+
+    while true; do
+        for g in $(get_available_gpus); do
+            if lock_gpu "$g"; then
+                if gpu_has_memory "$g"; then
+                    gpu=$g
+                    break
+                else
+                    unlock_gpu "$g"
+                fi
+            fi
+        done
+        [[ $gpu -ge 0 ]] && break
+        echo "Batch $batch_id: no GPU available, retrying in $RETRY_DELAY seconds..."
+        sleep $RETRY_DELAY
+    done
+
+    echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str)..."
+
+    # wait for audio models to build
+    if [[ "${MODEL_PATH,,}" == *"Qwen/Qwen2-Audio-7B-Instruct"* ]]; then
+        echo "Audio model detected. Waiting 120 seconds for memory to clear..."
+        sleep 120
+    fi
+
+    local log_file="${LOG_PATH}/${run_identifier}_${batch_id}.log"
+
+    ###########################################
+    # Run batch processing with specific indices
+    ###########################################
+    CUDA_VISIBLE_DEVICES=$gpu python -u "$PYTHON_SCRIPT" \
+        --target_model "$MODEL_PATH" \
+        --defence "$defence" \
+        --evaluation "$EVALUATION" \
+        --guard "$guard" \
+        --indices "$indices_str" \
+        --n_iterations 4 \
+        --n_streams 4 \
+        --keep_last_n 4 \
+        --run_identifier "$run_identifier" \
+        --batch_size "$BATCH_SIZE" \
+        &> "$log_file"
+
+
+    echo "Batch $batch_id finished, unlocking GPU $gpu"
+    unlock_gpu "$gpu"
+}
+
+###########################################
+# MAIN
+###########################################
+if [[ "$NUM_TASKS" -le 0 ]]; then
+    echo "NUM_TASKS <= 0. Nothing to run."
+    exit 0
+fi
+
+if [[ "$NUM_TASKS" -gt "$DATASET_SIZE" ]]; then
+    echo "ERROR: NUM_TASKS ($NUM_TASKS) exceeds DATASET_SIZE ($DATASET_SIZE)"
+    exit 1
+fi
+
+
+###########################################
+# GENERATE RANDOM INDICES
+###########################################
+echo "Generating $NUM_TASKS random indices from dataset of size $DATASET_SIZE..."
+
+if [[ -n "$RANDOM_SEED" ]]; then
+    # Use Python to generate random indices with a seed for reproducibility
+    python3 -c "
+import random
+random.seed($RANDOM_SEED)
+indices = random.sample(range($DATASET_SIZE), $NUM_TASKS)
+for idx in indices:
+    print(idx)
+" > "$INDICES_FILE"
+    echo "Using random seed: $RANDOM_SEED (results will be reproducible)"
+else
+    # Generate random indices without seed (different each run)
+    python3 -c "
+import random
+indices = random.sample(range($DATASET_SIZE), $NUM_TASKS)
+for idx in indices:
+    print(idx)
+" > "$INDICES_FILE"
+    echo "No random seed set (results will vary each run)"
+fi
+
+echo "Selected indices saved to: $INDICES_FILE"
+
+# Read indices into array
+mapfile -t SELECTED_INDICES < "$INDICES_FILE"
+
+###########################################
+# CREATE BATCHES FROM RANDOM INDICES
+###########################################
+num_batches=$(( (NUM_TASKS + BATCH_SIZE - 1) / BATCH_SIZE ))
+echo "Launching $num_batches batches (batch size: $BATCH_SIZE) with maximum $MAX_PARALLEL in parallel..."
+
+batch_id=1
+for ((i=0; i<NUM_TASKS; i+=BATCH_SIZE)); do
+    # Get slice of indices for this batch
+    batch_indices=("${SELECTED_INDICES[@]:i:BATCH_SIZE}")
+    
+    # Convert array to comma-separated string
+    indices_str=$(IFS=,; echo "${batch_indices[*]}")
+    
+    echo "Batch $batch_id: processing indices [$indices_str]"
+    
+    run_batch_job_with_indices "$indices_str" $batch_id &
+    PIDS+=($!)
+    batch_id=$((batch_id + 1))
+
+
+
+    # Wait if the number of running batches reaches MAX_PARALLEL
+    while [[ $(jobs -rp | wc -l) -ge $MAX_PARALLEL ]]; do
+        sleep 1
+    done
 done
 
-# Wait for all background jobs to finish
+# Wait for all remaining batches
 wait
+
+
+echo "All batches completed."
+
+
+

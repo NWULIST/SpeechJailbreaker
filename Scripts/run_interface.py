@@ -3,8 +3,8 @@ import argparse
 import subprocess
 import os
 import sys
-import os
-os.environ["OPENAI_API_KEY"] = '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'
+
+os.environ["OPENAI_API_KEY"] = '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'
 
 ATTACK_TO_SCRIPT = {
     'gcg': 'run_GCG.sh',
