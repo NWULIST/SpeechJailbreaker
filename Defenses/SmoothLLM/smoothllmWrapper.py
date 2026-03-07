@@ -36,6 +36,7 @@ class smoothllmWrapper:
         base_model = self.base_model
 
         class CallableModel:
+        
             #make class callable
             def __call__(self, batch, max_new_tokens):
                 #array to collect reponses
@@ -43,7 +44,7 @@ class smoothllmWrapper:
 
                 #prompt_text = perturbed sample strings
                 for prompt_text in batch:
-            
+
                     # Using assumption that audio path is in base model
                     with torch.no_grad():
                         response = base_model.generate(
@@ -66,3 +67,21 @@ class smoothllmWrapper:
         torch.cuda.empty_cache() 
 
         return self.smoothllm(prompt_input)
+
+    def generate_batch(self, questions, prompts, max_tokens=512):
+        """
+        Batch interface required by GPTFuzzer.
+        questions: list of audio paths
+        prompts: list of text prompts
+        """
+        outputs = []
+
+        for question_audio, prompt_text in zip(questions, prompts):
+            response = self.generate(
+                question_audio,
+                prompt_text,
+                max_tokens=max_tokens
+            )
+            outputs.append(response)
+
+        return outputs

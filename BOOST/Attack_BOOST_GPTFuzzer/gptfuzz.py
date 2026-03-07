@@ -63,6 +63,7 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     if (args.defence != ''
             and args.defence != 'guard'
             and args.defence != "None"
+            and args.defence != "smoothllm"
             and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
@@ -96,6 +97,14 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
             target_model,
             method=_spirit_method(args.defence),
         )
+
+    if args.defence == "smoothllm":
+        base_model = target_model
+        selected_pert = "RandomSwapPerturbation"
+        selected_num_copies = 6
+        selected_pert_pct = 0.15
+        target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=selected_pert_pct, num_copies=selected_num_copies)
+        print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")
 
     evaluation = getattr(args, 'evaluation', 'default')
     print("The evaluation is: ", evaluation)

@@ -229,10 +229,21 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
         )
         print(f"[SPIRIT] Defence active — method='{spirit_method}'")
 
+    smoothllm_defense = None
+
     #Apply Smoothllm defence if given
     if args.defence == "smoothllm":
         base_model = target_model
-        target_model = smoothllmWrapper(base_model, pert_type="RandomPatchPerturbation", pert_pct=0.1, num_copies=3)
+        selected_pert = "RandomSwapPerturbation"
+        selected_num_copies = 6
+        selected_pert_pct = 0.15
+        smoothllm_defense = smoothllmWrapper(
+            base_model, 
+            pert_type=selected_pert, 
+            pert_pct=selected_pert_pct, 
+            num_copies=selected_num_copies)
+
+        print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")
 
     # Setup evaluator
     evaluation = getattr(args, 'evaluation', 'default')
@@ -379,45 +390,63 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
                 x_orig = input_embeds.clone()
                 y_target = torch.tensor([target_token_id], device=device)
                 
+
                 x_adv = adversary.run_standard_evaluation(x_orig, y_target, bs=1)
                 
-                # SPIRIT: install corrective hooks during generation
-                spirit_handles = []
-                if spirit_active and spirit_wrapper_ref is not None:
-                    try:
-                        clean_acts = spirit_wrapper_ref._run_forward_for_activations(
-                            spirit_wrapper_ref._get_clean_audio_path(audio_path),
-                            text,
-                        )
-                        noisy_acts = spirit_wrapper_ref._run_forward_for_activations(
-                            audio_path, text
-                        )
-                        masks = identify_noisy_neurons(
-                            clean_acts, noisy_acts,
-                            spirit_wrapper_ref.top_k_percent,
-                        )
-                        spirit_handles = spirit_wrapper_ref._install_hooks(masks, clean_acts)
-                        print(f"[SPIRIT] Installed {len(spirit_handles)} corrective hooks for generation")
-                    except Exception as e:
-                        print(f"[SPIRIT] Warning: could not install hooks — {e}")
-                
-                try:
-                    new_tokens = generate_with_embeddings(
-                        model, 
-                        x_adv, 
-                        inputs, 
-                        args.max_new_tokens, 
-                        processor.tokenizer
+                # adversarial attack is run and so is smoothllm defense
+                if smoothllm_defense is not None:
+                    #Smoothllm needs for each perturbed copy to be processed through audio+text not
+                    #after the adversarial embedding has already taken place
+
+                    response = smoothllm_defense.generate(
+                        audio_path,
+                        origin_question,
+                        max_tokens = args.max_new_tokens
                     )
-                finally:
-                    # Always clean up SPIRIT hooks
-                    for h in spirit_handles:
-                        h.remove()
+
+
+                else:
+                    #if adversarial prompt is placed here -> smoothllm work is ignored
+                    #x_adv = adversary.run_standard_evaluation(x_orig, y_target, bs=1)
+                    
+                    # SPIRIT: install corrective hooks during generation
+                    spirit_handles = []
+                    if spirit_active and spirit_wrapper_ref is not None:
+                        try:
+                            clean_acts = spirit_wrapper_ref._run_forward_for_activations(
+                                spirit_wrapper_ref._get_clean_audio_path(audio_path),
+                                text,
+                            )
+                            noisy_acts = spirit_wrapper_ref._run_forward_for_activations(
+                                audio_path, text
+                            )
+                            masks = identify_noisy_neurons(
+                                clean_acts, noisy_acts,
+                                spirit_wrapper_ref.top_k_percent,
+                            )
+                            spirit_handles = spirit_wrapper_ref._install_hooks(masks, clean_acts)
+                            print(f"[SPIRIT] Installed {len(spirit_handles)} corrective hooks for generation")
+                        except Exception as e:
+                            print(f"[SPIRIT] Warning: could not install hooks — {e}")
+                    
+                    try:
+                        new_tokens = generate_with_embeddings(
+                            model, 
+                            x_adv, 
+                            inputs, 
+                            args.max_new_tokens, 
+                            processor.tokenizer
+                        )
+
+                        response = processor.batch_decode(new_tokens, skip_special_tokens=True)[0]
+
+                    finally:
+                        # Always clean up SPIRIT hooks
+                        for h in spirit_handles:
+                            h.remove()
                 
-                response = processor.batch_decode(new_tokens, skip_special_tokens=True)[0]
                 
                 print(f"Response: {response[:200]}...")
-                
                 prompt = origin_question
                 
                 # Apply guard if needed
