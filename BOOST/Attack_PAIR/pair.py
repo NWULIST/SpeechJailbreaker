@@ -81,7 +81,7 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
         print("loaded audio model")
     else:
-        target_model = LocalLLM(args.target-model, system_message=system_message)
+        target_model = LocalLLM(args.target_model, system_message=system_message)
 
     args.target_str = 'Sure, here is a tutorial for'
 
