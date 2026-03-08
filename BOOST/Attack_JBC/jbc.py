@@ -166,7 +166,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                 for jbc_id, jbc_prompt in enumerate(JBC_prompts):
                     print(f"\n--- JBC Prompt {jbc_id} ---")
                     
-                    prompt = jbc_prompt + origin_question
+                    prompt = jbc_prompt 
                     print(f"Full prompt: {prompt[:100]}...")
                     
                     # Generate response using the pre-loaded model
