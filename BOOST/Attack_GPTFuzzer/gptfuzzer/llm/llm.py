@@ -14,6 +14,7 @@ from BOOST.utils.constants import *
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 import google.generativeai as genai
 from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, AutoModel, Qwen2AudioForConditionalGeneration, AutoModelForImageTextToText
+import base64
 
 def get_hf_token():
     """Get HuggingFace token from environment or cached login"""
@@ -277,36 +278,71 @@ class OpenAILLM(LLM):
         self.model_path = model_path
         self.system_message = system_message if system_message is not None else "You are a helpful assistant."
 
-    def generate(self, prompt, temperature=0, max_tokens=512, n=1, max_trials=10, failure_sleep_time=5):
+    def _get_audio_payload(self, audio_path):
+        """Encodes local audio file to base64 for OpenAI API."""
+        try:
+            with open(audio_path, "rb") as audio_file:
+                encoded_string = base64.b64encode(audio_file.read()).decode('utf-8')
+            
+            # Determine format based on extension (OpenAI supports wav and mp3)
+            extension = audio_path.split('.')[-1].lower()
+            if extension not in ['wav', 'mp3']:
+                extension = 'wav' # Default fallback
+                
+            return {
+                "data": encoded_string,
+                "format": extension
+            }
+        except Exception as e:
+            logging.error(f"Failed to encode audio file {audio_path}: {e}")
+            return None
+
+    def generate(self, audio_path=None, prompt="", temperature=0, max_tokens=512, n=1, max_trials=10, failure_sleep_time=5):
+        # Ensure temperature is a float to avoid parsing errors
+        temperature = float(temperature)
+        
         for _ in range(max_trials):
             try:
-                if 'gpt-4o' in self.model_path.lower() or 'gpt-4-turbo' in self.model_path.lower():
-                    prompt_text = prompt if isinstance(prompt, str) else str(prompt)
-                    messages = [
-                        {"role": "system", "content": [{"type": "text", "text": self.system_message}]},
-                        {"role": "user", "content": [{"type": "text", "text": prompt_text}]},
-                    ]
-                else:
-                    # For other models, use simple string format
-                    messages = [
-                        {"role": "system", "content": self.system_message},
-                        {"role": "user", "content": prompt},
-                    ]
+                # 1. Build the User Content list
+                user_content = []
+                
+                # Add Text Prompt if provided
+                if prompt:
+                    user_content.append({"type": "text", "text": prompt})
+                
+                # Add Audio if path is provided and model is an audio model
+                if audio_path and "audio" in self.model_path.lower():
+                    audio_data = self._get_audio_payload(audio_path)
+                    if audio_data:
+                        user_content.append({
+                            "type": "input_audio",
+                            "input_audio": audio_data
+                        })
+                elif audio_path:
+                    # Fallback: if not an audio model, just append the path as text
+                    user_content.append({"type": "text", "text": f"[Audio File Path: {audio_path}]"})
+
+                messages = [
+                    {"role": "system", "content": self.system_message},
+                    {"role": "user", "content": user_content},
+                ]
+
                 results = self.client.chat.completions.create(
                     model=self.model_path,
-                    messages = messages,
+                    messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     n=n,
                 )
                 return [results.choices[i].message.content for i in range(n)]
+            
             except Exception as e:
                 logging.warning(
                     f"OpenAI API call failed due to {e}. Retrying {_+1} / {max_trials} times...")
                 time.sleep(failure_sleep_time)
 
         return [" " for _ in range(n)]
-
+    
     def generate_batch(self, prompts, temperature=0, max_tokens=512, n=1, max_trials=10, failure_sleep_time=5):
         results = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -519,25 +555,61 @@ class LocalSpeechLLM(LLM):
         
         if is_gemma_3n or is_gemma_3_speech:
             # Gemma 3n format - simpler message structure
+
+            # Load audio exactly like Qwen branch
+            if os.path.exists(prompt):
+                with open(prompt, "rb") as f:
+                 audio_bytes = BytesIO(f.read())
+            else:
+                 audio_bytes = BytesIO(urlopen(prompt).read())
+
+            audio_waveform = librosa.load(
+                audio_bytes,
+                sr=self.processor.feature_extractor.sampling_rate
+            )[0]
+
             messages = [
                 {
                     "role": "user",
                     "content": [
-                        {"type": "audio", "audio": prompt},
+                        {"type": "audio"},
                         {"type": "text", "text": text},
                     ]
                 }
             ]
             
             # Apply chat template
-            inputs = self.processor.apply_chat_template(
+            text_prompt= self.processor.apply_chat_template(
                 messages,
                 add_generation_prompt=True,
-                tokenize=True,
-                return_dict=True,
-                return_tensors="pt"
+                tokenize=False,
+                #return_dict=True,
+                #return_tensors="pt"
             )
             
+            # 4. Pass text + audio together through the processor
+            inputs = self.processor(
+                text=text_prompt,
+                audio=[audio_waveform],
+                return_tensors="pt",
+                padding=True,
+                sampling_rate=self.processor.feature_extractor.sampling_rate
+            )
+
+            print("DEBUG inputs keys:", list(inputs.keys()), flush=True)
+            for k, v in inputs.items():
+                if hasattr(v, 'shape'):
+                    print(f"DEBUG   {k}: {v.shape} dtype={v.dtype}", flush=True)
+                else:
+                    print(f"DEBUG   {k}: {type(v)}", flush=True)
+
+            # ── DEBUG 3: what audio tokens does the tokenizer know about? ──
+            audio_tokens = [
+                t for t in self.processor.tokenizer.get_vocab().keys()
+                if any(x in t.lower() for x in ['audio', 'speech', 'sound', '<a', 'soft'])
+             ]
+            print("DEBUG audio-related tokens:", audio_tokens[:20], flush=True)
+
             # Move to GPU
             inputs = {k: v.to("cuda") if hasattr(v, 'to') else v for k, v in inputs.items()}
             
