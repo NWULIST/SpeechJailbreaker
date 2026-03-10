@@ -3,7 +3,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import csv
 import pandas as pd
-from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, ClaudeLLM, GeminiLLM, LocalSpeechLLM
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalSpeechLLM, OpenAIAudioLLM
+#from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import LocalLLM, ClaudeLLM, GeminiLLM
 import random
 random.seed(100)
 import logging
@@ -149,16 +150,18 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
             raise FileNotFoundError(f"Defense file not found: {defence_path}")
 
         
-    if 'gpt' in args.target_model:
+    if 'gpt' in args.target_model and 'audio' not in args.target_model:
+        print(args.target_model)
         target_model = OpenAILLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'claude' in args.target_model:
         target_model = ClaudeLLM(args.target_model)
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model)
+    elif 'gpt-audio' in args.target_model:
+        print(args.target_model)
+        target_model = OpenAIAudioLLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'audio' in args.target_model.lower():
-        print("building audio target model")
         target_model = LocalSpeechLLM(args.target_model)
-        print("done building audio target model")
     elif 'gemma' in args.target_model.lower():
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
@@ -286,6 +289,10 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
             if isinstance(target_model, LocalSpeechLLM):
                 audio_prompts = [origin_question_audio] * len(adv_prompt_list)
                 target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
+            elif isinstance(target_model, OpenAIAudioLLM):
+                 # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
+                audio_prompts = [origin_question_audio] * len(adv_prompt_list)
+                target_response_list = target_model.generate_batch(prompts=adv_prompt_list, audios=audio_prompts,  max_tokens=512)
             else:
                 target_response_list = target_model.generate_batch(adv_prompt_list, max_tokens=512)
             print("Finished getting target responses.")
