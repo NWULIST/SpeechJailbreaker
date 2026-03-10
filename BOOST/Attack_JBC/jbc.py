@@ -79,7 +79,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     if args.defence == "smoothllm":
         base_model = target_model
         selected_pert = "RandomSwapPerturbation"
-        selected_num_copies = 6
+        selected_num_copies = 15
         selected_pert_pct = 0.15
         target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=selected_pert_pct, num_copies=selected_num_copies)
         print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")
@@ -136,6 +136,17 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
             if args.defence == 'self-reminder' and system_message:
                 current_system_message = system_message.replace("{QUESTION}", origin_question)
                 target_model.system_message = current_system_message
+
+            if args.defence == 'adashield':
+                    base_path = os.path.expanduser('~') 
+                    defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
+
+                    if os.path.isfile(defense_prompt_path):
+                        with open(defense_prompt_path, "r") as f:
+                            system_message = json.load(f)["prompt"]
+                            print(system_message)
+                    else:
+                        raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
             
             # Setup predictor for non-strongreject evaluation
             if evaluation != 'strongreject':

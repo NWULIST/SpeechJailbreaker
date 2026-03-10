@@ -62,6 +62,7 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
             and args.defence != 'guard'
             and args.defence != 'None'
             and args.defence != 'smoothllm'
+            and args.defence != 'adashield'
             and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
@@ -173,6 +174,17 @@ def ICA_attack(args, base_dir = "/projects/e33046/AABench"):
                         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
                     else:
                         target_model = LocalLLM(args.target_model, system_message=system_message)
+
+                if args.defence == 'adashield':
+                    base_path = os.path.expanduser('~') 
+                    defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
+
+                    if os.path.isfile(defense_prompt_path):
+                        with open(defense_prompt_path, "r") as f:
+                            system_message = json.load(f)["prompt"]
+                            print(system_message)
+                    else:
+                        raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
 
                 # # Defense wrapping for SmoothLLM and SPIRIT
 
