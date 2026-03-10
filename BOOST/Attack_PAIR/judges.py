@@ -6,7 +6,7 @@ from system_prompts import get_judge_system_prompt
 from language_models import APILiteLLM
 from loggers import logger
 
-from jailbreakbench import Classifier # issue
+#from jailbreakbench import Classifier # issue
 import os
 
 def load_judge(args):
@@ -66,10 +66,16 @@ class GPTJudge(JudgeBase):
 
     def score(self, attack_prompt_list, target_response_list):
         convs_list = [self.create_conv(self.get_judge_prompt(prompt, response)) for prompt, response in zip(attack_prompt_list, target_response_list)]
+        print("attack_prompt_list: ")
+        print(attack_prompt_list)
+        print("target_response_list: ")
+        print(target_response_list)
         raw_outputs = self.judge_model.batched_generate(convs_list, 
                                                         max_n_tokens = self.max_n_tokens,
                                                         temperature = self.temperature,
                                                         top_p=1)
+        print("raw outputs")
+        print(raw_outputs)
         outputs = [self.process_output(raw_output) for raw_output in raw_outputs]
         return outputs
     
