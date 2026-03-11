@@ -161,9 +161,13 @@ if __name__ == "__main__":
         default='test_run',
         help="add identifier for run"
     )
+
      # Batch processing arguments
     parser.add_argument('--indices', type=str, default=None, help='Comma-separated list of indices to process')
     parser.add_argument('--batch_size', type=int, default=10, help='Size of each batch')
+
+    #SmoothLLM arguments
+    parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
 
 
     add_model_args(parser)

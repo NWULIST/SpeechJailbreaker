@@ -29,6 +29,9 @@ MAX_PARALLEL=2
 RETRY_DELAY=5
 LOCK_DIR="/tmp/gpu_locks_${HOSTNAME}_$(id -u)_boost"
 
+#For SmoothLLM Defense
+NUM_COPIES=6   #default num_copies number
+
 # Dataset paths
 HARMFUL_DATASET="Dataset/harmful.csv"
 TARGETS_DATASET="Dataset/harmful_targets.csv"
@@ -49,6 +52,7 @@ while [[ $# -gt 0 ]]; do
     --harmful_dataset) HARMFUL_DATASET="$2"; shift 2 ;;
     --targets_dataset) TARGETS_DATASET="$2"; shift 2 ;;
     --max_query) MAX_QUERY="$2"; shift 2 ;;
+    --num_copies) NUM_COPIES="$2"; shift 2 ;;
     --max_jailbreak) MAX_JAILBREAK="$2"; shift 2 ;;
     --seed) RANDOM_SEED="$2"; shift 2 ;;
     *) shift ;;
@@ -154,6 +158,7 @@ run_batch_job_with_indices() {
       ${EOS_NUM:+ --eos_num "$EOS_NUM"} \
       --harmful_dataset "$HARMFUL_DATASET" \
       --targets_dataset "$TARGETS_DATASET" \
+      --num_copies "$NUM_COPIES"\
       $SEED_ARG \
       &> "$log_file"
 

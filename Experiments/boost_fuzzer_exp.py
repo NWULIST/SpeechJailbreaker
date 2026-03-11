@@ -59,6 +59,8 @@ if __name__ == "__main__":
                         help='Path to the harmful questions dataset')
     parser.add_argument('--targets_dataset', type=str, default='Dataset/harmful_targets.csv',
                         help='Path to the harmful targets dataset')
+    #SmoothLLM arguments
+    parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
     parser.add_argument('--evaluation', type=str, default='default', choices=['default', 'strongreject'], help='Evaluation method for attack success')
     add_model_args(parser)
 

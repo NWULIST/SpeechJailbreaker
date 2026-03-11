@@ -39,6 +39,7 @@ def main():
     parser.add_argument('--guard', required=False, default=None, help='Guard model to run')
     parser.add_argument('--seed', type=int, required=False, default=None, help='seed input for reproducibility in batched runs')
     parser.add_argument('--few_shot_num',type=int, required=False, default=0, help='Number of example prompts to show to model')
+    parser.add_argument('--num_copies',type=int, required=False, default=0, help='Number of copies for each prompt for SmoothLLM')
     args = parser.parse_args()
 
     if args.few_shot_num > 0 and args.attack != "ica":
@@ -53,7 +54,7 @@ def main():
     script_name = ATTACK_TO_SCRIPT[args.attack]
     script_path = os.path.join(os.path.dirname(__file__), script_name)
 
-    subprocess_input = [script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--batch_size", str(args.batch_size), "--defence", str(defence), '--guard', str(args.guard)]
+    subprocess_input = [script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--batch_size", str(args.batch_size), "--defence", str(defence), '--guard', str(args.guard), '--num_copies', str(args.num_copies)]
 
     #if few shots is enabled -> addd it to input to be passed on
     if args.attack == 'ica' and args.few_shot_num > 0:
@@ -61,6 +62,7 @@ def main():
     
     if args.seed is not None:
         subprocess_input += ['--seed', str(args.seed)]
+
 
 
     print(f"[INFO] Running {script_name} under Defence {args.defence} with MODEL_PATH={args.model_path} and EVALUATION={args.evaluation}")

@@ -235,7 +235,7 @@ def auto_attack(args, base_dir="/projects/e33046/AABench"):
     if args.defence == "smoothllm":
         base_model = target_model
         selected_pert = "RandomSwapPerturbation"
-        selected_num_copies = 6
+        selected_num_copies = args.num_copies
         selected_pert_pct = 0.15
         smoothllm_defense = smoothllmWrapper(
             base_model, 

@@ -80,10 +80,14 @@ if __name__ == "__main__":
     parser.add_argument('--evaluation', type=str, default='default',
                         choices=['default', 'strongreject'],
                         help='Evaluation method for attack success')
+    #SmoothLLM arguments
+    parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
+    
     # Base directory for audio files
     parser.add_argument('--base_dir', type=str, default='/projects/e33046/AudioJailbreak',
                         help='Base directory for audio files')
     args = parser.parse_args()
+
 
     # Set random seed
     set_random_seed(args.seed)

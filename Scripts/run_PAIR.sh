@@ -2,26 +2,34 @@
 module load cuda/cuda-12.1.0-openmpi-4.1.4
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-PYTHON_SCRIPT="../Experiments/pair_exp.py"
+#PYTHON_SCRIPT="../Experiments/pair_exp.py"
+PYTHON_SCRIPT="Experiments/pair_exp.py"
 MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
 EVALUATION="default"
-RUN_INDEX=2
+RUN_INDEX="$(date +%Y-%m-%d_%H-%M-%S)_$RANDOM"
 ADD_EOS=False
 EOS_NUM="10"
 defence=""
 guard=""
 # GPU
 GPU_MEMORY=40000
-NUM_GPU_SEARCH=5
+NUM_GPU_SEARCH=2
 NUM_TASKS=100 # Number of tasks to run
 
 #DATASET_SIZE=519              # Total size of your dataset
 DATASET_SIZE=4724
 RANDOM_SEED=42                 # Set to empty string for different samples each run
 BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
-MAX_PARALLEL=4               # Maximum batches to run simultaneously
+MAX_PARALLEL=3               # Maximum batches to run simultaneously
 RETRY_DELAY=5
-LOCK_DIR="/tmp/gpu_locks"
+
+
+#For SmoothLLM Defense
+NUM_COPIES=6   #default num_copies number
+
+#LOCK_DIR="/tmp/gpu_locks"
+#for dealing with stale lock issue
+LOCK_DIR="/tmp/gpu_locks$(id -u)"
 
 
 mkdir -p "$LOCK_DIR"
@@ -48,6 +56,10 @@ while [[ $# -gt 0 ]]; do
       defence="$2"
       shift 2
       ;;
+    --num_copies)
+      NUM_COPIES="$2"  
+      shift 2
+      ;;
     --num_gpu_search)
       NUM_GPU_SEARCH="$2"
       shift 2
@@ -62,7 +74,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-LOG_PATH="Logs/${MODEL_PATH}/PAIR"
+LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
 RESULTS_PATH="Results/${MODEL_PATH}/PAIR"
 # Create the directories if it does not exist
 mkdir -p "$LOG_PATH"
@@ -179,6 +191,7 @@ run_batch_job_with_indices() {
         --keep_last_n 4 \
         --run_identifier "$run_identifier" \
         --batch_size "$BATCH_SIZE" \
+        --num_copies "$NUM_COPIES"\
         &> "$log_file"
 
 

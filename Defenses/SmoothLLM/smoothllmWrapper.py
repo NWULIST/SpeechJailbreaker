@@ -3,6 +3,7 @@ from Defenses.SmoothLLM.smoothllm import SmoothLLM
 from Defenses.SmoothLLM.smoothllm import Defense
 from Defenses.SmoothLLM.smooth_prompt import smooth_prompt
 import torch
+import threading
 
 class smoothllmWrapper:
     #contructor that takes in LocalSpeechLLM, perturb method, % of characters to perturb, & number of samples to take 
@@ -11,6 +12,8 @@ class smoothllmWrapper:
         base_model: represents inputted LocalSpeechLLM
         """
         self.base_model = base_model
+        self._current_audio = None
+        self._lock = threading.Lock()
 
         # SmoothLLM expects target_model(batch=..., max_new_tokens=...)
         # wrap base_model into callable format for smoothllm
@@ -34,39 +37,59 @@ class smoothllmWrapper:
         """
 
         base_model = self.base_model
+        wrapper = self
 
         class CallableModel:
         
             #make class callable
             def __call__(self, batch, max_new_tokens):
+
+                if wrapper._current_audio is None:
+                    raise RuntimeError("Audio prompt not set before SmoothLLM call")
+
+                audio_prompts = [wrapper._current_audio] * len(batch)
+
+                return base_model.generate_batch(
+                    audio_prompts,
+                    batch, 
+                    max_tokens=max_new_tokens
+                )
+
                 #array to collect reponses
-                outputs = []
+                # outputs = []
 
                 #prompt_text = perturbed sample strings
-                for prompt_text in batch:
+                # for prompt_text in batch:
 
-                    # Using assumption that audio path is in base model
-                    with torch.no_grad():
-                        response = base_model.generate(
-                            self.question_audio,
-                            prompt_text,
-                            max_tokens=max_new_tokens
-                        )
-                    outputs.append(response)
-                return outputs
+                #     # Using assumption that audio path is in base model
+                #     with torch.no_grad():
+                #         response = base_model.generate(
+                #             self.question_audio,
+                #             prompt_text,
+                #             max_tokens=max_new_tokens
+                #         )
+                #     outputs.append(response)
+                # return outputs
 
         return CallableModel()
 
     def generate(self, question_audio, prompt_text, max_tokens=512):
+
+        with self._lock:
+            self._current_audio = question_audio
+            prompt_input = smooth_prompt(prompt_text, max_tokens)
+            result = self.smoothllm(prompt_input)
+            self._current_audio = None
+
+        return result
       
         #stores audio so callable model can access it
-        self.callable_model.question_audio = question_audio
+        # self.callable_model.question_audio = question_audio
+        # prompt_input = smooth_prompt(prompt_text, max_tokens)
 
-        prompt_input = smooth_prompt(prompt_text, max_tokens)
+        # torch.cuda.empty_cache() 
 
-        torch.cuda.empty_cache() 
-
-        return self.smoothllm(prompt_input)
+        # return self.smoothllm(prompt_input)
 
     def generate_batch(self, questions, prompts, max_tokens=512):
         """
