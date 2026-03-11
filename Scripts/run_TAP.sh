@@ -3,7 +3,8 @@ module load cuda/cuda-12.1.0-openmpi-4.1.4
 export HF_HOME="/projects/e33046/.cache/"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-PYTHON_SCRIPT="../Experiments/tap_exp.py"
+#PYTHON_SCRIPT="../Experiments/tap_exp.py"
+PYTHON_SCRIPT="Experiments/tap_exp.py"
 MODEL_PATH="google/gemma-7b-it"
 EVALUATION="default"
 RUN_INDEX=2
@@ -21,7 +22,13 @@ RANDOM_SEED=42                 # Set to empty string for different samples each 
 BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
 MAX_PARALLEL=4               # Maximum batches to run simultaneously
 RETRY_DELAY=5
-LOCK_DIR="/tmp/gpu_locks"
+
+#For SmoothLLM Defense
+NUM_COPIES=6   #default num_copies number
+
+#LOCK_DIR="/tmp/gpu_locks"
+#for dealing with stale lock issue
+LOCK_DIR="/tmp/gpu_locks$(id -u)"
 
 mkdir -p "$LOCK_DIR"
 
@@ -41,6 +48,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --gpu_memory)
       GPU_MEMORY="$2"
+      shift 2
+      ;;
+
+    --num_copies)
+      NUM_COPIES="$2"  
       shift 2
       ;;
     --num_gpu_search)
@@ -169,6 +181,7 @@ run_batch_job_with_indices() {
         --indices "$indices_str" \
         --run_identifier "$run_identifier" \
         --batch_size "$BATCH_SIZE" \
+        --num_copies "$NUM_COPIES" \
         &> "$log_file"
 
 
