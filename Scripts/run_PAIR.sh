@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
+LOG_PATH="Logs/${MODEL_PATH}/PAIR"
 RESULTS_PATH="Results/${MODEL_PATH}/PAIR"
 # Create the directories if it does not exist
 mkdir -p "$LOG_PATH"
@@ -187,11 +187,11 @@ run_batch_job_with_indices() {
         --guard "$guard" \
         --indices "$indices_str" \
         --n_iterations 3 \
-        --n_streams 3 \
+        --n_streams 30 \
         --keep_last_n 4 \
         --run_identifier "$run_identifier" \
         --batch_size "$BATCH_SIZE" \
-        --num_copies "$NUM_COPIES"\
+        --num_copies "$NUM_COPIES" \
         &> "$log_file"
 
 

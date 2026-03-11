@@ -205,6 +205,9 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                     
                     prompt = jbc_prompt 
                     print(f"Full prompt: {prompt[:100]}...")
+
+                    #get base model reference if wrapped
+                    model_ref = getattr(target_model, "base_model", target_model)
                     
                     # Generate response using the pre-loaded model
                     if isinstance(target_model, OpenAIAudioLLM):
@@ -213,7 +216,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                             audio=origin_question_audio,
                             max_tokens=args.max_new_tokens
                         )[0]
-                    elif isinstance(target_model, LocalSpeechLLM):
+                    elif isinstance(model_ref, LocalSpeechLLM):
                         response = target_model.generate(
                             origin_question_audio,
                             prompt,
