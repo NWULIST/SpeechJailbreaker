@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import csv
 import pandas as pd
-from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM, OpenAIAudioLLM
 from BOOST.utils.templates import get_eos
 from BOOST.Attack_GPTFuzzer.gptfuzzer.utils.template import synthesis_message
 import logging
@@ -82,9 +82,23 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
         else:
             raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
 
-        
+    if 'gpt' in args.target_model and 'audio' not in args.target_model:
+        print(args.target_model)
+        target_model = OpenAILLM(args.target_model, args.openai_key, system_message=system_message)
+    elif 'claude' in args.target_model:
+        target_model = ClaudeLLM(args.target_model, args.claude_key)
+    elif 'gemini' in args.target_model:
+        target_model = GeminiLLM(args.target_model, args.gemini_key)
+    elif 'gpt' in args.target_model.lower() and 'audio' in args.target_model.lower():
+        print(args.target_model)
+        target_model = OpenAIAudioLLM(args.target_model, args.openai_key, system_message=system_message)
+    elif 'audio' in args.target_model.lower():
+        print(args.target_model)
+        target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+    else:
+        target_model = LocalLLM(args.target_model, system_message=system_message)
 
-    target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+    #target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
 
     # Defense wrapping for SmoothLLM and SPIRIT
 
@@ -193,8 +207,26 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                     print(f"Full prompt: {prompt[:100]}...")
                     
                     # Generate response using the pre-loaded model
-                    response = target_model.generate(origin_question_audio, prompt, 
-                                                    max_tokens=args.max_new_tokens)
+                    if isinstance(target_model, OpenAIAudioLLM):
+                        response = target_model.generate(
+                            prompt,
+                            audio=origin_question_audio,
+                            max_tokens=args.max_new_tokens
+                        )[0]
+                    elif isinstance(target_model, LocalSpeechLLM):
+                        response = target_model.generate(
+                            origin_question_audio,
+                            prompt,
+                            max_tokens=args.max_new_tokens
+                        )
+                    else:
+                        response = target_model.generate(
+                            prompt,
+                            max_tokens=args.max_new_tokens
+                        )
+
+                    #response = target_model.generate(origin_question_audio, prompt, 
+                    #                               max_tokens=args.max_new_tokens)
                     print(f"Response: {response[:200]}...")
                     
                     # Apply guard if needed
