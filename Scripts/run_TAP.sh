@@ -14,13 +14,13 @@ defence=""
 guard=""
 # GPU
 GPU_MEMORY=40000
-NUM_GPU_SEARCH=5
+NUM_GPU_SEARCH=2
 NUM_TASKS=100 # Number of tasks to run
 
 DATASET_SIZE=519              # Total size of your dataset
 RANDOM_SEED=42                 # Set to empty string for different samples each run
 BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
-MAX_PARALLEL=4               # Maximum batches to run simultaneously
+MAX_PARALLEL=3               # Maximum batches to run simultaneously
 RETRY_DELAY=5
 
 #For SmoothLLM Defense

@@ -11,6 +11,7 @@ import logging
 from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from datasets import load_dataset
+from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
 import json
 
 httpx_logger: logging.Logger = logging.getLogger("httpx")
