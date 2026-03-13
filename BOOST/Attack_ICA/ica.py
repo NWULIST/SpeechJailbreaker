@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import csv
 import pandas as pd
-from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM, ClaudeLLM, GeminiLLM
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM, ClaudeLLM, OpenAIAudioLLM
 import random
 from BOOST.utils.templates import get_eos
 from datasets import load_dataset
