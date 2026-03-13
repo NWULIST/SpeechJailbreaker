@@ -5,7 +5,7 @@ import time
 import torch
 import gc
 from typing import Dict, List
-import google.generativeai as genai
+#import google.generativeai as genai
 import urllib3
 from copy import deepcopy
 

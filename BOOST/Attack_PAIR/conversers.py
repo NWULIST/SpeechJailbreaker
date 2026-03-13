@@ -29,9 +29,7 @@ def load_indiv_model(model_name, local = False, use_jailbreakbench=True):
             lm = LLMvLLM(model_name=model_name)
         else:
             from jailbreakbench import LLMLiteLLM
-            # Handle both Model enum and string
-            model_for_key = Model(model_name) if isinstance(model_name, str) and hasattr(Model, model_name.replace('-', '_').replace('.', '_')) else model_name
-            api_key = get_api_key(model_for_key)
+            api_key = get_api_key(Model(model_name))
             lm = LLMLiteLLM(model_name= model_name, api_key = api_key)
     else:
         if local:
@@ -39,22 +37,6 @@ def load_indiv_model(model_name, local = False, use_jailbreakbench=True):
         else:
             lm = APILiteLLM(model_name)
     return lm
-
-
-class DynamicModel:
-    """Wrapper to make any model name string behave like a Model enum"""
-    def __init__(self, value):
-        self.value = value
-        self.name = value.replace('-', '_').replace('.', '_')
-        self._name_ = self.name
-        self._value_ = value
-    
-    def __str__(self):
-        return self.value
-    
-    def __repr__(self):
-        return f"DynamicModel({self.value})"
-
 
 class AttackLM():
     """
@@ -69,13 +51,7 @@ class AttackLM():
                 category: str,
                 evaluate_locally: bool):
         
-        # Try to use Model enum, but fall back to DynamicModel if not found
-        try:
-            self.model_name = Model(model_name)
-        except ValueError:
-            print(f"Warning: '{model_name}' not in Model enum, using as dynamic model")
-            self.model_name = DynamicModel(model_name)
-        
+        self.model_name = Model(model_name)
         self.max_n_tokens = max_n_tokens
         self.max_n_attack_attempts = max_n_attack_attempts
 
@@ -90,20 +66,7 @@ class AttackLM():
                                       use_jailbreakbench=False # Cannot use JBB as attacker
                                       )
         self.initialize_output = self.model.use_open_source_model
-        
-        # Get template, with fallback for unknown models
-        try:
-            self.template = FASTCHAT_TEMPLATE_NAMES[self.model_name]
-        except (KeyError, TypeError):
-            # For models not in FASTCHAT_TEMPLATE_NAMES, use a default
-            print(f"Warning: No template found for {model_name}, using default")
-            # Try to find a sensible default based on model name
-            if 'gpt' in model_name.lower():
-                self.template = 'gpt-3.5-turbo'
-            elif 'claude' in model_name.lower():
-                self.template = 'claude'
-            else:
-                self.template = 'zero_shot'  # Generic fallback
+        self.template = FASTCHAT_TEMPLATE_NAMES[self.model_name]
 
     def preprocess_conversation(self, convs_list: list, prompts_list: list[str]):
         # For open source models, we can seed the generation with proper JSON
@@ -159,7 +122,8 @@ class AttackLM():
                 break
 
         if any([output is None for output in valid_outputs]):
-            raise ValueError(f"Failed to generate valid output after {self.max_n_attack_attempts} attempts. Terminating.")
+            #raise ValueError(f"Failed to generate valid output after {self.max_n_attack_attempts} attempts. Terminating.")
+            return None, None
         return valid_outputs, new_adv_prompts
 
     def get_attack(self, convs_list, prompts_list):
@@ -180,6 +144,9 @@ class AttackLM():
         # Convert conv_list to openai format and add the initial message
         processed_convs_list, init_message = self.preprocess_conversation(convs_list, prompts_list)
         valid_outputs, new_adv_prompts = self._generate_attack(processed_convs_list, init_message)
+
+        if not valid_outputs or not new_adv_prompts:
+            return None
 
         for jailbreak_prompt, conv in zip(new_adv_prompts, convs_list):
             # For open source models, we can seed the generation with proper JSON and omit the post message

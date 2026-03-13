@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=45.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "attackbench"
+version = "0.1.0"
+description = "AttackBench: Framework for testing LLM robustness against jailbreak attacks"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "AttackBench Contributors"}
+]
+keywords = ["llm", "jailbreak", "red-teaming", "safety", "attack"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+attackbench = "attackbench.run:main"
+
+[project.urls]
+Homepage = "https://github.com/robinzixuan/AttackBench"
+Repository = "https://github.com/robinzixuan/AttackBench"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["attackbench*"]

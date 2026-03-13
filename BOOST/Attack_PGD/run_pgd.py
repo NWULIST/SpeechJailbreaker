@@ -2,7 +2,6 @@ import os
 # os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # for debugging
 import pandas as pd
 import argparse
-# from BOOST.Attack_GCG.gcg import GCG
 from BOOST.Attack_PGD.LLM_Embedding_Attack.embedding_attack_toxic import EmbeddingAttack
 import os
 import sys
@@ -26,7 +25,18 @@ import psutil
 import os
 import time
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from Defenses.SPIRIT.spirit_wrapper import SPIRITWrapper
 import re
+
+# Add SPIRIT Defense
+SPIRIT_DEFENCES = {"spirit_bias", "spirit_prune", "spirit_patch"}
+
+def _is_spirit_defence(name: str) -> bool:
+    return name in SPIRIT_DEFENCES
+
+def _spirit_method(name: str) -> str:
+    return name.replace("spirit_", "")
+
 
 class EvalResult(NamedTuple):
     success: bool
@@ -52,7 +62,11 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
 
     system_message = None
 
-    if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
+    # Bypass JSON loading for SpeechLLM and other defenses
+    if (args.defence != ''
+            and args.defence != 'guard'
+            and args.defence != 'None'
+            and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(defence_path)
 
@@ -79,7 +93,13 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
     else:
         target_model = LocalLLM(args.target_model, system_message=system_message)
 
-    
+    # SPIRIT defence wrapping
+    if _is_spirit_defence(args.defence):
+        print(f"[SPIRIT] Wrapping target model with method='{_spirit_method(args.defence)}'")
+        target_model = SPIRITWrapper(
+            target_model,
+            method=_spirit_method(args.defence),
+        )
 
     args.target_str = target_str
     args.target_audio = target_audio
@@ -106,25 +126,23 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
     print("The question is: ", origin_question)
     print("The target is: ", target_str)
     
-    # gcg = GCG(args)
-    # optim_prompts, steps, scores = gcg.run(target)
-    
     attacker = EmbeddingAttack(args)
     
-    # Remove user's broken lines if they exist, but I cannot see them in this context easily without reading again.
-    # Actually, I will targeting the attacker.run call specifically.
-    
-    # Extract model and tokenizer
-    if hasattr(target_model, 'model'):
-        model_obj = target_model.model
+    # Extract model and tokenizer — for SPIRIT wrapper, reach into the base model
+    underlying_model = target_model
+    if isinstance(target_model, SPIRITWrapper):
+        underlying_model = target_model.base_model
+
+    if hasattr(underlying_model, 'model'):
+        model_obj = underlying_model.model
     else:
         raise ValueError("Target model must be a white-box model (expose .model) for embedding attack.")
         
     tokenizer_obj = None
-    if hasattr(target_model, 'tokenizer') and target_model.tokenizer is not None:
-        tokenizer_obj = target_model.tokenizer
-    elif hasattr(target_model, 'processor'):
-        tokenizer_obj = target_model.processor.tokenizer
+    if hasattr(underlying_model, 'tokenizer') and underlying_model.tokenizer is not None:
+        tokenizer_obj = underlying_model.tokenizer
+    elif hasattr(underlying_model, 'processor'):
+        tokenizer_obj = underlying_model.processor.tokenizer
     
     if tokenizer_obj is None:
         raise ValueError("Could not find tokenizer in target_model.")
@@ -135,8 +153,8 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
         model_obj.gradient_checkpointing_enable()
 
     processor_obj = None
-    if hasattr(target_model, 'processor'):
-        processor_obj = target_model.processor
+    if hasattr(underlying_model, 'processor'):
+        processor_obj = underlying_model.processor
         
     optim_prompts, steps, scores = attacker.run(
         model_obj, 
@@ -150,7 +168,6 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
     # save the optim prompts into a csv file
     save_path = f'./Results/{args.target_model}/PGD-{args.run_index}/{args.index}.csv'
 
-    # Add evaluation method as a folder
     evaluation = getattr(args, 'evaluation', 'default')
     response = target_model.generate(origin_question_audio, optim_prompts)
     print(response)
@@ -173,7 +190,6 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
         )
         model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
 
-        # conduct text completion
         generated_ids = model.generate(
             **model_inputs,
             max_new_tokens=128
@@ -184,11 +200,9 @@ def pgd_attack(args, base_dir="/projects/e33046/AABench"):
         content = tokenizer.decode(output_ids, skip_special_tokens=True)
         
         print(content)
-        # save the optim prompts into a csv file
         save_path = f'./Results/{args.target_model}/ICA/{args.index}.csv'
 
         print("The save path is: ", save_path)
-        # check if the directory exists
         if not os.path.exists(os.path.dirname(save_path)):
             os.makedirs(os.path.dirname(save_path))
             

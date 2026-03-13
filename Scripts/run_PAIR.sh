@@ -1,57 +1,90 @@
-#!/usr/bin/env bash
-set -e
-
-###########################################
-# MODULES & ENV
-###########################################
+#!/bin/bash
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/e33046/.cache/"
+# Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-
-# Load OpenAI API key from .env file
-if [ -f ".env" ]; then
-    export $(grep -v '^#' .env | xargs)
-    echo "Loaded environment variables from .env"
-elif [ -f "/projects/e33046/AttackBench/.env" ]; then
-    export $(grep -v '^#' /projects/e33046/AttackBench/.env | xargs)
-    echo "Loaded environment variables from /projects/e33046/AttackBench/.env"
-else
-    echo "WARNING: .env file not found!"
-fi
-
-# Verify OpenAI API key is set
-if [ -z "$OPENAI_API_KEY" ]; then
-    echo "ERROR: OPENAI_API_KEY is not set!"
-    echo "Please create a .env file with: OPENAI_API_KEY=your-key-here"
-    exit 1
-else
-    echo "OpenAI API key loaded: ${OPENAI_API_KEY:0:15}..."
-fi
-
-###########################################
-# CONFIG
-###########################################
-PYTHON_SCRIPT="./Experiments/pair_exp.py"
-MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"  # Or use Qwen/Qwen2-Audio-7B-Instruct
-EVALUATION="strongreject"
+PYTHON_SCRIPT="../Experiments/pair_exp.py"
+MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
+EVALUATION="default"
 RUN_INDEX=2
+ADD_EOS=False
+EOS_NUM="10"
 defence=""
 guard=""
-GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
-NUM_GPU_SEARCH=7               # Highest GPU index to search
-NUM_TASKS=400                  # Total tasks to run
-DATASET_SIZE=4724              # Total size of your dataset
+# GPU
+GPU_MEMORY=40000
+NUM_GPU_SEARCH=5
+NUM_TASKS=100 # Number of tasks to run
+
+DATASET_SIZE=519              # Total size of your dataset
 RANDOM_SEED=42                 # Set to empty string for different samples each run
-BATCH_SIZE=200                  # Process 10 items per GPU (adjust based on memory)
-MAX_PARALLEL=2               # Maximum batches to run simultaneously
+BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
+MAX_PARALLEL=4               # Maximum batches to run simultaneously
 RETRY_DELAY=5
 LOCK_DIR="/tmp/gpu_locks"
-LOG_PATH="Logs/${MODEL_PATH}/PAIR-${RUN_INDEX}"
-RESULTS_CSV="${LOG_PATH}/results.csv"
-INDICES_FILE="${LOG_PATH}/selected_indices.txt"
 
-mkdir -p "$LOG_PATH"
+
 mkdir -p "$LOCK_DIR"
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --model_path)
+      MODEL_PATH="$2"
+      shift 2
+      ;;
+    --guard)
+      guard="$2"
+      shift 2
+      ;;
+    --evaluation)
+      EVALUATION="$2"
+      shift 2
+      ;;
+    --gpu_memory)
+      GPU_MEMORY="$2"
+      shift 2
+      ;;
+    --defence)
+      defence="$2"
+      shift 2
+      ;;
+    --num_gpu_search)
+      NUM_GPU_SEARCH="$2"
+      shift 2
+      ;;
+    --num_tasks)
+      NUM_TASKS="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+LOG_PATH="Logs/${MODEL_PATH}/PAIR"
+RESULTS_PATH="Results/${MODEL_PATH}/PAIR"
+# Create the directories if it does not exist
+mkdir -p "$LOG_PATH"
+mkdir -p "$RESULTS_PATH"
+
+run_identifier=$(date +"%Y-%m-%d_%H-%M")
+
+# Output CSV file name
+OUTPUT_FILE="${RESULTS_PATH}/PAIR_${run_identifier}.csv"
+# Create CSV header
+echo "index,origin_question,iteration,stream_id,prompt,target_response,strongreject_score,success" > "$OUTPUT_FILE"
+
+# Verify file creation
+if [[ -f "$OUTPUT_FILE" ]]; then
+    echo "CSV file '$OUTPUT_FILE' created successfully."
+else
+    echo "Error: Failed to create CSV file."
+    exit 1
+fi
+
+
+INDICES_FILE="${LOG_PATH}/selected_indices_${run_identifier}.txt"
+
 
 ###########################################
 # CLEANUP ON INTERRUPT
@@ -80,6 +113,7 @@ gpu_has_memory() {
     local gpu=$1
     local free_mem
     free_mem=$(nvidia-smi -i $gpu --query-gpu=memory.free --format=csv,noheader,nounits)
+    echo "$free_mem"
     [[ "$free_mem" -ge "$GPU_MEMORY" ]]
 }
 
@@ -121,7 +155,14 @@ run_batch_job_with_indices() {
     done
 
     echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str)..."
-    local log_file="${LOG_PATH}/batch_${batch_id}.log"
+
+    # wait for audio models to build
+    if [[ "${MODEL_PATH,,}" == *"Qwen/Qwen2-Audio-7B-Instruct"* ]]; then
+        echo "Audio model detected. Waiting 120 seconds for memory to clear..."
+        sleep 120
+    fi
+
+    local log_file="${LOG_PATH}/${run_identifier}_${batch_id}.log"
 
     ###########################################
     # Run batch processing with specific indices
@@ -132,20 +173,13 @@ run_batch_job_with_indices() {
         --evaluation "$EVALUATION" \
         --guard "$guard" \
         --indices "$indices_str" \
-        --n_iterations 10 \
+        --n_iterations 3 \
         --n_streams 3 \
-        --keep_last_n 2 \
+        --keep_last_n 4 \
+        --run_identifier "$run_identifier" \
+        --batch_size "$BATCH_SIZE" \
         &> "$log_file"
 
-    # Extract results for each item in the batch
-    while IFS= read -r line; do
-        if [[ $line =~ ^RESULT:([0-9]+),([0-9.]+),([0-9]+)$ ]]; then
-            idx="${BASH_REMATCH[1]}"
-            score="${BASH_REMATCH[2]}"
-            count="${BASH_REMATCH[3]}"
-            echo "$idx,$score,$count" >> "$RESULTS_CSV"
-        fi
-    done < <(grep '^RESULT:' "$log_file")
 
     echo "Batch $batch_id finished, unlocking GPU $gpu"
     unlock_gpu "$gpu"
@@ -164,8 +198,6 @@ if [[ "$NUM_TASKS" -gt "$DATASET_SIZE" ]]; then
     exit 1
 fi
 
-# Write CSV header
-echo "job_index,total_score,total_count" > "$RESULTS_CSV"
 
 ###########################################
 # GENERATE RANDOM INDICES
@@ -218,6 +250,8 @@ for ((i=0; i<NUM_TASKS; i+=BATCH_SIZE)); do
     PIDS+=($!)
     batch_id=$((batch_id + 1))
 
+
+
     # Wait if the number of running batches reaches MAX_PARALLEL
     while [[ $(jobs -rp | wc -l) -ge $MAX_PARALLEL ]]; do
         sleep 1
@@ -227,10 +261,8 @@ done
 # Wait for all remaining batches
 wait
 
-# Compute total ASR
-total_score=$(awk -F, 'NR>1 {sum+=$2} END {print sum}' "$RESULTS_CSV")
-total_count=$(awk -F, 'NR>1 {sum+=$3} END {print sum}' "$RESULTS_CSV")
-total_ASR=$(awk -v s="$total_score" -v c="$total_count" 'BEGIN {print (c>0 ? s/c : 0)}')
 
-echo "TOTAL_ASR,$total_ASR" >> "$RESULTS_CSV"
-echo "All batches completed. TOTAL_ASR=$total_ASR"
+echo "All batches completed."
+
+
+

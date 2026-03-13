@@ -14,7 +14,19 @@ from typing import NamedTuple
 from datasets import load_dataset
 import json
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
+from Defenses.SPIRIT.spirit_wrapper import SPIRITWrapper
 import re
+
+# Add SPIRIT Defense
+SPIRIT_DEFENCES = {"spirit_bias", "spirit_prune", "spirit_patch"}
+
+def _is_spirit_defence(name: str) -> bool:
+    return name in SPIRIT_DEFENCES
+
+def _spirit_method(name: str) -> str:
+    return name.replace("spirit_", "")
+
 
 class EvalResult(NamedTuple):
     success: bool
@@ -36,14 +48,14 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                                quotechar='"', escapechar='\\', dtype=str)['text'].tolist()
     
     ds = load_dataset("NWULIST/AABench", "default")['train']
-    
-    # Get list of indices to process
-    indices_to_process = args.indices_list
-    print(f"Processing {len(indices_to_process)} indices: {indices_to_process}")
-    
-    # Load system message if defense is specified
+
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != "None":
+    # bypass JSON loading for SmoothLLM and SPIRIT
+    if (args.defence != ''
+            and args.defence != 'guard'
+            and args.defence != "None"
+            and args.defence != 'smoothllm'
+            and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(f"Loading defense from: {defence_path}")
         
@@ -52,14 +64,33 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                 system_message = json.load(f)["prompt"]
         else:
             raise FileNotFoundError(f"Defense file not found: {defence_path}")
-    
-    # ============================================================
-    # LOAD MODEL ONCE - This is the key optimization!
-    # ============================================================
-    print(f"Loading target model: {args.target_model}")
-    # We'll create the model without a specific question first
-    # and pass questions dynamically during generation
+
+
+    if args.defence == 'self-reminder':
+        system_message = system_message.replace("{QUESTION}", origin_question)
+        print(system_message)
+        
+
+
     target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+
+    # Defense wrapping for SmoothLLM and SPIRIT
+
+    if args.defence == "smoothllm":
+        base_model = target_model
+        selected_pert = "RandomSwapPerturbation"
+        selected_num_copies = 6
+        selected_pert_pct = 0.15
+        target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=selected_pert_pct, num_copies=selected_num_copies)
+        print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")
+
+    if _is_spirit_defence(args.defence):
+        print(f"[SPIRIT] Wrapping target model with method='{_spirit_method(args.defence)}'")
+        target_model = SPIRITWrapper(
+            target_model,
+            method=_spirit_method(args.defence),
+        )
+
     print("Target model loaded successfully!")
     
     # Setup evaluator
@@ -69,8 +100,6 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     if evaluation == 'strongreject':
         predictor = evaluate_generation_strongreject
     else:
-        # For non-strongreject, we need the OpenAI predictor
-        # This will be created per-question since it depends on the question
         predictor = None
     
     # Load guard model once if needed (outside the loop)
@@ -89,7 +118,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     # ============================================================
     # PROCESS EACH INDEX IN THE BATCH
     # ============================================================
-    for idx in indices_to_process:
+    for idx in args.indices_list:
         print(f"\n{'='*60}")
         print(f"Processing index {idx}")
         print(f"{'='*60}")
@@ -106,7 +135,6 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
             current_system_message = system_message
             if args.defence == 'self-reminder' and system_message:
                 current_system_message = system_message.replace("{QUESTION}", origin_question)
-                # Update the model's system message for this question
                 target_model.system_message = current_system_message
             
             # Setup predictor for non-strongreject evaluation
@@ -138,7 +166,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                 for jbc_id, jbc_prompt in enumerate(JBC_prompts):
                     print(f"\n--- JBC Prompt {jbc_id} ---")
                     
-                    prompt = jbc_prompt + origin_question
+                    prompt = jbc_prompt 
                     print(f"Full prompt: {prompt[:100]}...")
                     
                     # Generate response using the pre-loaded model
@@ -163,7 +191,6 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                         print(f"Guard output: {content}")
                         
                         if 'safe' not in content.lower():
-                            # Guard blocked it, score as 0
                             writer.writerow([jbc_id, response, 0])
                             continue
                     
@@ -193,12 +220,10 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                         if args.early_stop and result == 1:
                             break
                 
-                # Output result for this index in the expected format
                 print(f"\nRESULT:{idx},{total_score},{total_count}", flush=True)
         
         except Exception as e:
             print(f"ERROR processing index {idx}: {str(e)}", file=sys.stderr)
             import traceback
             traceback.print_exc()
-            # Output zero score for failed index
             print(f"RESULT:{idx},0,0", flush=True)

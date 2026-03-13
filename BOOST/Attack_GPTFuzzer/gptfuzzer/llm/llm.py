@@ -12,9 +12,8 @@ from vllm import LLM as vllm
 from vllm import SamplingParams
 from BOOST.utils.constants import *
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
-import google.generativeai as genai
+#import google.generativeai as genai
 from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, AutoModel, Qwen2AudioForConditionalGeneration, AutoModelForImageTextToText
-
 import base64
 import requests
 
@@ -595,7 +594,7 @@ class LocalSpeechLLM(LLM):
                                 sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
-            inputs = self.processor(text=text_prompt, audios=audios, return_tensors="pt", padding=True)
+            inputs = self.processor(text=text_prompt, audio=audios, return_tensors="pt", padding=True)
             inputs = {k: v.to("cuda") for k, v in inputs.items()}
            
             generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
@@ -652,7 +651,7 @@ class LocalSpeechLLM(LLM):
                                     sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
-        inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
+        inputs = self.processor(text=text, audio=audios, return_tensors="pt", padding=True)
         device = next(self.model.parameters()).device
         inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
         input_ids_length = inputs['input_ids'].size(1)
@@ -664,11 +663,6 @@ class LocalSpeechLLM(LLM):
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
         return response
-
-
-
-
-
 
 class OpenAIAudioLLM(LLM):
     def __init__(self, model_path, api_key=None, system_message=None):
@@ -735,6 +729,7 @@ class OpenAIAudioLLM(LLM):
                             "format": audio_format
                         }
                     })
+    
 
                 messages = [
                     {"role": "system", "content": self.system_message},
@@ -799,4 +794,3 @@ class OpenAIAudioLLM(LLM):
             for future in concurrent.futures.as_completed(futures):
                 results.extend(future.result())
         return results
-

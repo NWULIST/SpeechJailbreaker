@@ -15,6 +15,7 @@ from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 import google.generativeai as genai
 from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, AutoModel, Qwen2AudioForConditionalGeneration
 
+
 class LLM:
     def __init__(self):
         self.model = None
@@ -435,11 +436,12 @@ class LocalSpeechLLM(LLM):
                             sr=self.processor.feature_extractor.sampling_rate)[0]
                         )
 
-        inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
+        inputs = self.processor(text=text, audio=audios, return_tensors="pt", padding=True)
         inputs = {k: v.to("cuda") for k, v in inputs.items()}
        
-        generate_ids = self.model.generate(**inputs, max_length=1024)
-        generate_ids = generate_ids[:, inputs['input_ids'].size(1):]
+        #generate_ids = self.model.generate(**inputs, max_length=1024)
+        generate_ids = self.model.generate(**inputs, max_new_tokens=256)
+        generate_ids = generate_ids[:, inputs['input_ids'].size(1):] 
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         return response
@@ -480,13 +482,14 @@ class LocalSpeechLLM(LLM):
                                     sr=self.processor.feature_extractor.sampling_rate)[0]
                             )
 
-        inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
+        inputs = self.processor(text=text, audio=audios, return_tensors="pt", padding=True)
         print(type(inputs))
         inputs = inputs.to("cuda")
         # inputs = {k: v.to("cuda") for k, v in inputs.items() if isinstance(v, torch.Tensor)}
         # inputs.input_ids = inputs.input_ids.to("cuda")
 
-        generate_ids = self.model.generate(**inputs, max_length=1024)
+        #generate_ids = self.model.generate(**inputs, max_length=1024)
+        generate_ids = self.model.generate(**inputs, max_new_tokens=256)
         generate_ids = generate_ids[:, inputs.input_ids.size(1):]
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)

@@ -1,44 +1,31 @@
 #!/usr/bin/env python3
-import argparse
-import subprocess
-import os
+"""
+Unified entry point for running attack scripts.
+
+Can be run directly:
+  python Scripts/run_interface.py --attack ica --model_path Qwen/Qwen2-Audio-7B-Instruct
+
+Or via the installed attackbench CLI (after pip install -e .):
+  attackbench --attack ica --model_path Qwen/Qwen2-Audio-7B-Instruct
+"""
+
 import sys
 import os
-os.environ["OPENAI_API_KEY"] = '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'
 
-ATTACK_TO_SCRIPT = {
-    'pgd': 'run_PGD.sh',
-    'fuzzer': 'run_GPTFuzzer.sh',
-    'ica': 'run_ICA.sh',
-    'sure': 'run_SURE.sh',
-    'reasoning': 'run_reasoning.sh',
-    'jbc': 'run_JBC.sh',
-    'boost_fuzzer': 'run_boost_GPTFuzzer.sh',
-    'pair': 'run_PAIR.sh',
-    'tap': 'run_TAP.sh',
-    'autoattack': 'run_auto.sh',
-}
+# Ensure project root is on path when running this script directly
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.dirname(_script_dir)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-def main():
-    parser = argparse.ArgumentParser(description='Unified Python interface for running attack scripts.')
-    parser.add_argument('--attack', required=True, default='tap', choices=ATTACK_TO_SCRIPT.keys(), help='Attack method to run')
-    parser.add_argument('--defence', required=False, default='None', help='Defence method to run')
-    parser.add_argument('--model_path', required=False, default='Qwen/Qwen2-Audio-7B-Instruct', help='Model path to pass to the attack script')
-    parser.add_argument('--evaluation', required=False, default='strongreject', help='Evaluation method to pass to the attack script (default or strongreject)')
-    parser.add_argument('--num_tasks', type=int, default=2, help='Number of tasks to run in parallel (default: 3)')
-    parser.add_argument('--guard', required=False, default=None, help='Guard model to run')
-    args = parser.parse_args()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-    script_name = ATTACK_TO_SCRIPT[args.attack]
-    script_path = os.path.join(os.path.dirname(__file__), script_name)
+# Delegate to attackbench package
+from attackbench.run import main
 
-    print(f"[INFO] Running {script_name} under Defence {args.defence} with MODEL_PATH={args.model_path} and EVALUATION={args.evaluation}")
-    try:
-        result = subprocess.run([script_path, "--model_path", args.model_path, "--evaluation", args.evaluation, "--num_tasks", str(args.num_tasks), "--defence", str(args.defence), '--guard', str(args.guard)], check=True)
-        sys.exit(result.returncode)
-    except subprocess.CalledProcessError as e:
-        print(f"[ERROR] {script_name} failed with exit code {e.returncode}")
-        sys.exit(e.returncode)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
