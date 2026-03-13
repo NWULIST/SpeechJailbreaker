@@ -96,7 +96,7 @@ class SmoothLLM(Defense):
         # Determine whether SmoothLLM was jailbroken
         jb_percentage = np.mean(are_copies_jailbroken)
         smoothLLM_jb = True if jb_percentage > 0.5 else False
-        #print(f"SmoothLLM number of copies in vote: {len(are_copies_jailbroken)}\n")
+        print(f"SmoothLLM number of copies in vote: {len(are_copies_jailbroken)}\n")
         print(f"SmoothLLM JB Percentage for Prompt: {jb_percentage}\n")
 
         # Pick a response that is consistent with the majority vote

@@ -315,7 +315,7 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
             except (ValueError,FileNotFoundError) as e:
                 print(f"Skipping index {idx}: audio file error {e}")
                 csv_writer.writerow([idx, origin_question, 0, "N/A", "N/A", f"Skipped: {e}", 0, False])
-                sr_csv_file.flush()
+                tap_csv_file.flush()
                 continue
 
             judge_scores = []

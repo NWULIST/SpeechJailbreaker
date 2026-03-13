@@ -213,7 +213,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                     if isinstance(target_model, OpenAIAudioLLM):
                         response = target_model.generate(
                             prompt,
-                            audio=origin_question_audio,
+                            origin_question_audio,
                             max_tokens=args.max_new_tokens
                         )[0]
                     elif isinstance(model_ref, LocalSpeechLLM):
@@ -221,6 +221,10 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                             origin_question_audio,
                             prompt,
                             max_tokens=args.max_new_tokens
+                        )
+                    elif isinstance(model_ref, OpenAIAudioLLM):         
+                        response = target_model.generate(
+                            origin_question_audio, prompt, max_tokens=args.max_new_tokens
                         )
                     else:
                         response = target_model.generate(

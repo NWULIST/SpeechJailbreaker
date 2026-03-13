@@ -22,14 +22,14 @@ guard=""
 GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
 #NUM_GPU_SEARCH=7             # Highest GPU index to search
 
-#change to 0 since I am using only one gpu 
-NUM_GPU_SEARCH=2
+ 
+NUM_GPU_SEARCH=1
 
 #start with 2 just to gauge that it works
 #NUM_TASKS=2
 
 #testing on one gpu 
-MAX_PARALLEL=3
+MAX_PARALLEL=2
 
 #BATCH_SIZE=1
 DATASET_SIZE=4724

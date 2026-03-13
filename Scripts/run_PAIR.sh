@@ -13,14 +13,14 @@ defence=""
 guard=""
 # GPU
 GPU_MEMORY=40000
-NUM_GPU_SEARCH=2
+NUM_GPU_SEARCH=1
 NUM_TASKS=100 # Number of tasks to run
 
 #DATASET_SIZE=519              # Total size of your dataset
 DATASET_SIZE=4724
 RANDOM_SEED=42                 # Set to empty string for different samples each run
 BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
-MAX_PARALLEL=3               # Maximum batches to run simultaneously
+MAX_PARALLEL=2               # Maximum batches to run simultaneously
 RETRY_DELAY=5
 
 
@@ -187,7 +187,7 @@ run_batch_job_with_indices() {
         --guard "$guard" \
         --indices "$indices_str" \
         --n_iterations 3 \
-        --n_streams 30 \
+        --n_streams 10 \
         --keep_last_n 4 \
         --run_identifier "$run_identifier" \
         --batch_size "$BATCH_SIZE" \

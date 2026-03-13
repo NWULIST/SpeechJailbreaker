@@ -2,6 +2,7 @@
 from Defenses.SmoothLLM.smoothllm import SmoothLLM
 from Defenses.SmoothLLM.smoothllm import Defense
 from Defenses.SmoothLLM.smooth_prompt import smooth_prompt
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAIAudioLLM
 import torch
 import threading
 
@@ -49,11 +50,19 @@ class smoothllmWrapper:
 
                 audio_prompts = [wrapper._current_audio] * len(batch)
 
-                return base_model.generate_batch(
-                    audio_prompts,
-                    batch, 
-                    max_tokens=max_new_tokens
-                )
+                if isinstance(base_model, OpenAIAudioLLM):
+                    return base_model.generate_batch(
+                        prompts=batch,
+                        audios=audio_prompts,
+                        max_tokens=max_new_tokens
+                    )
+                else:
+                    # LocalSpeechLLM: positional (audio, text)
+                    return base_model.generate_batch(
+                        audio_prompts,
+                        batch,
+                        max_tokens=max_new_tokens
+                    )
 
                 #array to collect reponses
                 # outputs = []
