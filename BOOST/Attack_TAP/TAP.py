@@ -155,18 +155,18 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
         print(args.target_model)
         target_model = OpenAILLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'claude' in args.target_model:
-        target_model = ClaudeLLM(args.target_model)
+        target_model = ClaudeLLM(args.target_model, args.claude_key)
     elif 'gemini' in args.target_model:
-        target_model = GeminiLLM(args.target_model)
-    elif 'gpt-audio' in args.target_model:
+        target_model = GeminiLLM(args.target_model, args.gemini_key)
+    elif 'gpt' in args.target_model.lower() and 'audio' in args.target_model.lower():
         print(args.target_model)
         target_model = OpenAIAudioLLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'audio' in args.target_model.lower():
-        target_model = LocalSpeechLLM(args.target_model)
-    elif 'gemma' in args.target_model.lower():
+        print(args.target_model)
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
         target_model = LocalLLM(args.target_model, system_message=system_message)
+
 
     print("loaded target model")
 
@@ -308,6 +308,9 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
                     # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
                     audio_prompts = [origin_question_audio] * len(adv_prompt_list)
                     target_response_list = target_model.generate_batch(prompts=adv_prompt_list, audios=audio_prompts,  max_tokens=512)
+                elif isinstance(model_ref, OpenAIAudioLLM):
+                    audio_prompts = [origin_question_audio] * len(adv_prompt_list)
+                    target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
                 else:
                     target_response_list = target_model.generate_batch(adv_prompt_list, max_tokens=512)
                 print("Finished getting target responses.")
