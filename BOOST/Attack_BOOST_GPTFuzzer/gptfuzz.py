@@ -11,7 +11,7 @@ from gptfuzzer.fuzzer.mutator import (
     MutateRandomSinglePolicy, OpenAIMutatorCrossOver, OpenAIMutatorExpand,
     OpenAIMutatorGenerateSimilar, OpenAIMutatorRephrase, OpenAIMutatorShorten)
 from gptfuzzer.fuzzer import GPTFuzzer
-from gptfuzzer.llm import OpenAILLM, LocalLLM, ClaudeLLM, GeminiLLM, LocalSpeechLLM
+from gptfuzzer.llm import OpenAILLM, LocalLLM, ClaudeLLM, GeminiLLM, LocalSpeechLLM, OpenAIAudioLLM
 from gptfuzzer.utils.predict import RoBERTaPredictor
 import random
 from BOOST.utils.templates import get_eos
@@ -79,17 +79,22 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
         system_message = system_message.replace("{QUESTION}", origin_question)
         print(system_message)
 
-    if 'gpt' in args.target_model:
-        target_model = OpenAILLM(args.target_model, args.openai_key)
+    if 'gpt' in args.target_model and 'audio' not in args.target_model:
+        print(args.target_model)
+        target_model = OpenAILLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'claude' in args.target_model:
         target_model = ClaudeLLM(args.target_model, args.claude_key)
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model, args.gemini_key)
+    elif 'gpt' in args.target_model.lower() and 'audio' in args.target_model.lower():
+        print(args.target_model)
+        target_model = OpenAIAudioLLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'audio' in args.target_model.lower():
+        print(args.target_model)
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
-       target_model = LocalLLM(args.target_model, system_message=system_message)
-    
+        target_model = LocalLLM(args.target_model, system_message=system_message)
+
     # Defense wrapping for SPIRIT
     if _is_spirit_defence(args.defence):
         print(f"[SPIRIT] Wrapping target model with method='{_spirit_method(args.defence)}'")
@@ -101,7 +106,7 @@ def fuzzer_attack(args, base_dir = "/projects/e33046/AABench"):
     if args.defence == "smoothllm":
         base_model = target_model
         selected_pert = "RandomSwapPerturbation"
-        selected_num_copies = 6
+        selected_num_copies = args.num_copies
         selected_pert_pct = 0.15
         target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=selected_pert_pct, num_copies=selected_num_copies)
         print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")

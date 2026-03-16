@@ -47,6 +47,8 @@ if __name__ == "__main__":
     parser.add_argument('--evaluation', type=str, default='default', 
                         choices=['default', 'strongreject'], 
                         help='Evaluation method')
+    #SmoothLLM arguments
+    parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
     add_model_args(parser)
 
     args = parser.parse_args()

@@ -22,7 +22,7 @@ guard=""
 GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
 #NUM_GPU_SEARCH=7             # Highest GPU index to search
 
-#change to 0 since I am using only one gpu 
+ 
 NUM_GPU_SEARCH=1
 
 #start with 2 just to gauge that it works
@@ -31,8 +31,11 @@ NUM_GPU_SEARCH=1
 #testing on one gpu 
 MAX_PARALLEL=2
 
-BATCH_SIZE=1
+#BATCH_SIZE=1
 DATASET_SIZE=4724
+
+#For SmoothLLM Defense
+NUM_COPIES=6   #default num_copies number
 
 RETRY_DELAY=5
 #original
@@ -90,6 +93,11 @@ while [[ $# -gt 0 ]]; do
       guard="$2"
       shift 2
       ;;
+
+    --num_copies)
+    NUM_COPIES="$2"  
+    shift 2
+    ;;
 
     --seed)
       RANDOM_SEED="$2"
@@ -212,6 +220,7 @@ run_batch_job_with_indices() {
         --guard "$guard" \
         --indices "$indices_str" \
         --max-new-tokens 256 \
+        --num_copies "$NUM_COPIES"\
         $SEED_ARG\
         &> "$log_file"
 

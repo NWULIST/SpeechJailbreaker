@@ -11,6 +11,7 @@ import logging
 from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from datasets import load_dataset
+from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
 import json
 
 httpx_logger: logging.Logger = logging.getLogger("httpx")
@@ -139,7 +140,7 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
         os.makedirs(args.store_folder, exist_ok=True)
 
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
+    if args.defence != '' and args.defence != 'guard' and args.defence != 'smoothllm' and args.defence != 'None':
         defence_path = f"/home/niy0569/SpeechJailbreaker/Defense_prompt/{args.defence}.json"
 
         if os.path.isfile(defence_path):
@@ -154,20 +155,29 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
         print(args.target_model)
         target_model = OpenAILLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'claude' in args.target_model:
-        target_model = ClaudeLLM(args.target_model)
+        target_model = ClaudeLLM(args.target_model, args.claude_key)
     elif 'gemini' in args.target_model:
-        target_model = GeminiLLM(args.target_model)
-    elif 'gpt-audio' in args.target_model:
+        target_model = GeminiLLM(args.target_model, args.gemini_key)
+    elif 'gpt' in args.target_model.lower() and 'audio' in args.target_model.lower():
         print(args.target_model)
         target_model = OpenAIAudioLLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'audio' in args.target_model.lower():
-        target_model = LocalSpeechLLM(args.target_model)
-    elif 'gemma' in args.target_model.lower():
+        print(args.target_model)
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
         target_model = LocalLLM(args.target_model, system_message=system_message)
 
+
     print("loaded target model")
+
+    if args.defence == "smoothllm":
+        base_model = target_model
+        selected_pert = "RandomSwapPerturbation"
+        selected_num_copies = args.num_copies
+        selected_pert_pct = 0.15
+        target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=selected_pert_pct, num_copies=selected_num_copies)
+        print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")
+
 
     args.target_str = 'Sure, here is a tutorial for'
 
@@ -286,16 +296,30 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
             ############################################################
             #   QUERY, ASSESS & LOG 
             ############################################################
-            if isinstance(target_model, LocalSpeechLLM):
-                audio_prompts = [origin_question_audio] * len(adv_prompt_list)
-                target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
-            elif isinstance(target_model, OpenAIAudioLLM):
-                 # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
-                audio_prompts = [origin_question_audio] * len(adv_prompt_list)
-                target_response_list = target_model.generate_batch(prompts=adv_prompt_list, audios=audio_prompts,  max_tokens=512)
-            else:
-                target_response_list = target_model.generate_batch(adv_prompt_list, max_tokens=512)
-            print("Finished getting target responses.")
+
+            #get base model reference if wrapped
+            model_ref = getattr(target_model, "base_model", target_model)
+
+            try:
+                if isinstance(model_ref, LocalSpeechLLM):
+                    audio_prompts = [origin_question_audio] * len(adv_prompt_list)
+                    target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
+                elif isinstance(target_model, OpenAIAudioLLM):
+                    # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
+                    audio_prompts = [origin_question_audio] * len(adv_prompt_list)
+                    target_response_list = target_model.generate_batch(prompts=adv_prompt_list, audios=audio_prompts,  max_tokens=512)
+                elif isinstance(model_ref, OpenAIAudioLLM):
+                    audio_prompts = [origin_question_audio] * len(adv_prompt_list)
+                    target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
+                else:
+                    target_response_list = target_model.generate_batch(adv_prompt_list, max_tokens=512)
+                print("Finished getting target responses.")
+
+            except (ValueError,FileNotFoundError) as e:
+                print(f"Skipping index {idx}: audio file error {e}")
+                csv_writer.writerow([idx, origin_question, 0, "N/A", "N/A", f"Skipped: {e}", 0, False])
+                tap_csv_file.flush()
+                continue
 
             judge_scores = []
             is_successful_jailbreak = False

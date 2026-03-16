@@ -21,6 +21,9 @@ MAX_PARALLEL=2
 BATCH_SIZE=1
 DATASET_SIZE=4724
 
+#For SmoothLLM Defense
+NUM_COPIES=6   #default num_copies number
+
 RETRY_DELAY=5
 #original
 #LOCK_DIR="/tmp/gpu_locks"
@@ -64,6 +67,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --num_tasks)
       NUM_TASKS="$2"
+      shift 2
+      ;;
+
+    --num_copies)
+      NUM_COPIES="$2"  
       shift 2
       ;;
 
@@ -204,6 +212,7 @@ run_batch_job_with_indices() {
       --defence "$defence" \
       --guard "$guard" \
       --indices "$indices_str"\
+      --num_copies "$NUM_COPIES"\
       $SEED_ARG\
       &> "$log_file"
 

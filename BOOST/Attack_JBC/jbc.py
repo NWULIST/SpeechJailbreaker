@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import csv
 import pandas as pd
-from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalLLM, LocalSpeechLLM, OpenAIAudioLLM
 from BOOST.utils.templates import get_eos
 from BOOST.Attack_GPTFuzzer.gptfuzzer.utils.template import synthesis_message
 import logging
@@ -55,6 +55,7 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
             and args.defence != 'guard'
             and args.defence != "None"
             and args.defence != 'smoothllm'
+            and args.defence != 'adashield'
             and not _is_spirit_defence(args.defence)):
         defence_path = f"/projects/e33046/AttackBench/Defense_prompt/{args.defence}.json"
         print(f"Loading defense from: {defence_path}")
@@ -69,17 +70,42 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
     if args.defence == 'self-reminder':
         system_message = system_message.replace("{QUESTION}", origin_question)
         print(system_message)
-        
 
+    if args.defence == 'adashield':
+        base_path = os.path.expanduser('~') 
+        defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
 
-    target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+        if os.path.isfile(defense_prompt_path):
+            with open(defense_prompt_path, "r") as f:
+                system_message = json.load(f)["prompt"]
+                print(system_message)
+        else:
+            raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
+
+    if 'gpt' in args.target_model and 'audio' not in args.target_model:
+        print(args.target_model)
+        target_model = OpenAILLM(args.target_model, args.openai_key, system_message=system_message)
+    elif 'claude' in args.target_model:
+        target_model = ClaudeLLM(args.target_model, args.claude_key)
+    elif 'gemini' in args.target_model:
+        target_model = GeminiLLM(args.target_model, args.gemini_key)
+    elif 'gpt' in args.target_model.lower() and 'audio' in args.target_model.lower():
+        print(args.target_model)
+        target_model = OpenAIAudioLLM(args.target_model, args.openai_key, system_message=system_message)
+    elif 'audio' in args.target_model.lower():
+        print(args.target_model)
+        target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
+    else:
+        target_model = LocalLLM(args.target_model, system_message=system_message)
+
+    #target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
 
     # Defense wrapping for SmoothLLM and SPIRIT
 
     if args.defence == "smoothllm":
         base_model = target_model
         selected_pert = "RandomSwapPerturbation"
-        selected_num_copies = 6
+        selected_num_copies = args.num_copies
         selected_pert_pct = 0.15
         target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=selected_pert_pct, num_copies=selected_num_copies)
         print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")
@@ -136,6 +162,17 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
             if args.defence == 'self-reminder' and system_message:
                 current_system_message = system_message.replace("{QUESTION}", origin_question)
                 target_model.system_message = current_system_message
+
+            if args.defence == 'adashield':
+                    base_path = os.path.expanduser('~') 
+                    defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
+
+                    if os.path.isfile(defense_prompt_path):
+                        with open(defense_prompt_path, "r") as f:
+                            system_message = json.load(f)["prompt"]
+                            print(system_message)
+                    else:
+                        raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
             
             # Setup predictor for non-strongreject evaluation
             if evaluation != 'strongreject':
@@ -168,10 +205,35 @@ def JBC_attack(args, base_dir="/projects/e33046/AABench"):
                     
                     prompt = jbc_prompt 
                     print(f"Full prompt: {prompt[:100]}...")
+
+                    #get base model reference if wrapped
+                    model_ref = getattr(target_model, "base_model", target_model)
                     
                     # Generate response using the pre-loaded model
-                    response = target_model.generate(origin_question_audio, prompt, 
-                                                    max_tokens=args.max_new_tokens)
+                    if isinstance(target_model, OpenAIAudioLLM):
+                        response = target_model.generate(
+                            prompt,
+                            origin_question_audio,
+                            max_tokens=args.max_new_tokens
+                        )[0]
+                    elif isinstance(model_ref, LocalSpeechLLM):
+                        response = target_model.generate(
+                            origin_question_audio,
+                            prompt,
+                            max_tokens=args.max_new_tokens
+                        )
+                    elif isinstance(model_ref, OpenAIAudioLLM):         
+                        response = target_model.generate(
+                            origin_question_audio, prompt, max_tokens=args.max_new_tokens
+                        )
+                    else:
+                        response = target_model.generate(
+                            prompt,
+                            max_tokens=args.max_new_tokens
+                        )
+
+                    #response = target_model.generate(origin_question_audio, prompt, 
+                    #                               max_tokens=args.max_new_tokens)
                     print(f"Response: {response[:200]}...")
                     
                     # Apply guard if needed

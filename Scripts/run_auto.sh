@@ -22,6 +22,9 @@ GPU_MEMORY=40000
 NUM_GPU_SEARCH=1
 NUM_TASKS=3
 
+#For SmoothLLM Defense
+NUM_COPIES=6   #default num_copies number
+
 BATCH_SIZE=1
 DATASET_SIZE=4724
 MAX_PARALLEL=2
@@ -44,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --num_tasks) NUM_TASKS="$2"; shift 2 ;;
     --batch_size) BATCH_SIZE="$2"; shift 2 ;;
     --max_new_tokens) MAX_NEW_TOKENS="$2"; shift 2 ;;
+    --num_copies) NUM_COPIES="$2"; shift 2 ;;
     --base_dir) BASE_DIR="$2"; shift 2 ;;
     --seed) RANDOM_SEED="$2"; shift 2 ;;
     *) shift ;;
@@ -154,6 +158,7 @@ run_batch_job_with_indices() {
         --device "$DEVICE" \
         --max_new_tokens "$MAX_NEW_TOKENS" \
         --base_dir "$BASE_DIR" \
+        --num_copies "$NUM_COPIES"\
         $SEED_ARG \
         &> "$log_file"
 
