@@ -1,0 +1,2 @@
+[console_scripts]
+attackbench = attackbench.run:main
