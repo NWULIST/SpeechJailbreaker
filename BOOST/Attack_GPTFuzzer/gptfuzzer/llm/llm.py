@@ -704,7 +704,7 @@ class OpenAIAudioLLM(LLM):
             f"Expected bytes, file-like, or str path/URL."
         )
 
-    def generate(self, prompt, audio=None, audio_format="mp3",
+    def generate(self, prompt, audio=None, audio_format="wav",
                  temperature=0, max_tokens=512, n=1,
                  max_trials=10, failure_sleep_time=5):
 
@@ -738,9 +738,8 @@ class OpenAIAudioLLM(LLM):
 
                 completion = self.client.chat.completions.create(
                     model=self.model_path,
-                    #modalities=["text", "audio"] if audio else ["text"],
-                    modalities=['text'],
-                    #audio={"voice": "alloy", "format": "mp3"} if audio else None,
+                    modalities=["text", "audio"] if audio else ["text"],
+                    audio={"voice": "alloy", "format": "wav"} if audio else None,
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
@@ -749,7 +748,6 @@ class OpenAIAudioLLM(LLM):
 
                 outputs = []
                 for choice in completion.choices:
-                    print(choice.message.content)
                     outputs.append(choice.message.content)
 
                 return outputs
@@ -763,7 +761,7 @@ class OpenAIAudioLLM(LLM):
 
         return [""] * n
 
-    def generate_batch(self, prompts, audios=None, audio_format="mp3",
+    def generate_batch(self, prompts, audios=None, audio_format="wav",
                        temperature=0, max_tokens=512, n=1,
                        max_trials=10, failure_sleep_time=5):
         """
