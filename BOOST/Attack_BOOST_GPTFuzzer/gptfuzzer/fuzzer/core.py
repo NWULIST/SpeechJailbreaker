@@ -14,6 +14,7 @@ from gptfuzzer.utils.predict import Predictor
 import warnings
 from gptfuzzer.llm import OpenAILLM
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAIAudioLLM
 import re
 
 class PromptNode:
@@ -203,7 +204,9 @@ class GPTFuzzer:
         # generate responses
         if messages:
             print(messages)
+
             responses = self.target.generate_batch(self.questions, messages)
+
             logging.info(self.predictor)
 
             for i, response in zip(valid_prompt_indices, responses):

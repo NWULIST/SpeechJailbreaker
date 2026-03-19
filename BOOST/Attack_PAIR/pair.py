@@ -172,14 +172,14 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
                 if isinstance(model_ref, LocalSpeechLLM):
                     # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
                     audio_prompts = [origin_question_audio] * len(adv_prompt_list)
-                    target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
+                    target_response_list = target_model.generate_batch(audios=audio_prompts, prompts=adv_prompt_list, max_tokens=512)
                 elif isinstance(target_model, OpenAIAudioLLM):
                     # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
                     audio_prompts = [origin_question_audio] * len(adv_prompt_list)
                     target_response_list = target_model.generate_batch(prompts=adv_prompt_list, audios=audio_prompts,  max_tokens=512)
                 elif isinstance(model_ref, OpenAIAudioLLM):
                     audio_prompts = [origin_question_audio] * len(adv_prompt_list)
-                    target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
+                    target_response_list = target_model.generate_batch(audios=audio_prompts, prompts=adv_prompt_list, max_tokens=512)
                 else:
                     # For other models, use generate_batch with text prompts
                     target_response_list = target_model.generate_batch(adv_prompt_list, max_tokens=512)

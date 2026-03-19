@@ -49,11 +49,11 @@ class smoothllmWrapper:
                     raise RuntimeError("Audio prompt not set before SmoothLLM call")
 
                 audio_prompts = [wrapper._current_audio] * len(batch)
-
-                if isinstance(base_model, OpenAIAudioLLM):
+        
+                if type(base_model).__name__ == 'OpenAIAudioLLM':
                     return base_model.generate_batch(
-                        prompts=batch,
                         audios=audio_prompts,
+                        prompts=batch,
                         max_tokens=max_new_tokens
                     )
                 else:
@@ -100,7 +100,7 @@ class smoothllmWrapper:
 
         # return self.smoothllm(prompt_input)
 
-    def generate_batch(self, questions, prompts, max_tokens=512):
+    def generate_batch(self, questions, prompts, audios = None, max_tokens=512):
         """
         Batch interface required by GPTFuzzer.
         questions: list of audio paths
@@ -109,6 +109,13 @@ class smoothllmWrapper:
         outputs = []
 
         for question_audio, prompt_text in zip(questions, prompts):
+
+            if audios is not None and questions is None:
+                questions = audios
+
+            if isinstance(prompt_text, list):
+                prompt_text = " ".join(prompt_text)
+
             response = self.generate(
                 question_audio,
                 prompt_text,

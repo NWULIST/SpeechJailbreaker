@@ -14,6 +14,7 @@ from BOOST.utils.constants import *
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 import google.generativeai as genai
 from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, AutoModel, Qwen2AudioForConditionalGeneration
+import base64
 
 
 class LLM:
@@ -494,3 +495,138 @@ class LocalSpeechLLM(LLM):
 
         response = self.processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
         return response
+
+class OpenAIAudioLLM(LLM):
+    def __init__(self, model_path, api_key=None, system_message=None):
+        super().__init__()
+        self.client = OpenAI(api_key=api_key)
+        self.model_path = model_path
+        self.system_message = system_message or "You are a helpful assistant."
+
+    def _encode_audio(self, audio_path_or_bytes):
+        """
+        Encode audio input to base64 string.
+        Supports:
+          - raw bytes / bytearray / memoryview
+          - file-like objects with .read()
+          - local file paths
+          - remote URLs (http/https)
+        """
+        # bytes-like input
+        if isinstance(audio_path_or_bytes, (bytes, bytearray, memoryview)):
+            return base64.b64encode(bytes(audio_path_or_bytes)).decode("utf-8")
+
+        # file-like object
+        if hasattr(audio_path_or_bytes, "read"):
+            return base64.b64encode(audio_path_or_bytes.read()).decode("utf-8")
+
+        # string input: local path or URL
+        if isinstance(audio_path_or_bytes, str):
+            if audio_path_or_bytes.startswith("http"):
+                r = requests.get(audio_path_or_bytes)
+                r.raise_for_status()
+                return base64.b64encode(r.content).decode("utf-8")
+
+            # treat as local file path (previous behavior)
+            with open(audio_path_or_bytes, "rb") as f:
+                return base64.b64encode(f.read()).decode("utf-8")
+
+        raise TypeError(
+            f"Unsupported audio input type: {type(audio_path_or_bytes)}. "
+            f"Expected bytes, file-like, or str path/URL."
+        )
+
+    def generate(self, prompt, audio=None, audio_format="mp3",
+                 temperature=0, max_tokens=512, n=1,
+                 max_trials=10, failure_sleep_time=5):
+
+        for trial in range(max_trials):
+            try:
+                content = []
+
+                # text part
+                if isinstance(prompt, str):
+                    content.append({
+                        "type": "text",
+                        "text": prompt
+                    })
+
+                # audio part
+                if audio is not None:
+                    encoded_audio = self._encode_audio(audio)
+                    content.append({
+                        "type": "input_audio",
+                        "input_audio": {
+                            "data": encoded_audio,
+                            "format": audio_format
+                        }
+                    })
+    
+
+                messages = [
+                    {"role": "system", "content": self.system_message},
+                    {"role": "user", "content": content}
+                ]
+
+                completion = self.client.chat.completions.create(
+                    model=self.model_path,
+                    #modalities=["text", "audio"] if audio else ["text"],
+                    modalities=['text'],
+                    #audio={"voice": "alloy", "format": "mp3"} if audio else None,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    n=n
+                )
+
+                outputs = []
+                for choice in completion.choices:
+                    print(choice.message.content)
+                    outputs.append(choice.message.content)
+
+                return outputs
+
+            except Exception as e:
+                logging.warning(
+                    f"OpenAI API call failed due to {e}. "
+                    f"Retrying {trial+1}/{max_trials}..."
+                )
+                time.sleep(failure_sleep_time)
+
+        return [""] * n
+
+    def generate_batch(self, prompts, audios=None, audio_format="mp3",
+                       temperature=0, max_tokens=512, n=1,
+                       max_trials=10, failure_sleep_time=5):
+        """
+        Batched generation for (text, optional audio) inputs.
+        - prompts: list of text prompts
+        - audios: list of audio inputs (same types as _encode_audio) or None
+        """
+        print("OPENAI PROMPTS:", prompts[:1])
+        print("OPENAI AUDIOS:", audios[:1])
+        if audios is None:
+            audios = [None] * len(prompts)
+
+        if len(audios) != len(prompts):
+            raise ValueError("Length of audios must match length of prompts.")
+
+        results = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(
+                    self.generate,
+                    prompt,
+                    audio,
+                    audio_format,
+                    temperature,
+                    max_tokens,
+                    n,
+                    max_trials,
+                    failure_sleep_time,
+                ): (prompt, audio)
+                for prompt, audio in zip(prompts, audios)
+            }
+            for future in concurrent.futures.as_completed(futures):
+                results.extend(future.result())
+        return results
