@@ -1,219 +1,164 @@
 # SpeechJailbreaker
-SpeechJailbreaker is a framework for testing and evaluating the robustness of large language models (LLMs) against various attack techniques. It implements multiple state-of-the-art attack methods to assess and help improve LLM safety.
 
-interface: python
-`python --attack --model_path --evaluation --dataset --num_GPU`
-=> StrongReject Score
+SpeechJailbreaker is a research framework for evaluating how vulnerable speech/text-capable LLMs are to jailbreak attacks, and how well different defenses mitigate those attacks.
 
+The repository provides:
+- Multiple attack implementations (optimization, fuzzing, and prompt-based)
+- A unified runner interface
+- Optional defense wrappers/prompts
+- Evaluation with `strongreject` or default scoring
 
-## Todo
-AttackBench: evaluater
-    - gpt evalution
-    - Black list
+## Features
 
-- optimization：
-    1. [x] add readme
-    2. [x] run through 
-    3. [x] add open ai evalution like [stronger](https://github.com/alexandrasouly/strongreject)
+- Unified command interface through `Scripts/run_interface.py`
+- Configurable attack, model, defense, evaluation, and task count
+- Support for common jailbreak attack families:
+  - `pgd`
+  - `fuzzer`
+  - `ica`
+  - `sure`
+  - `reasoning`
+  - `jbc`
+  - `boost_fuzzer`
+  - `pair`
+  - `tap`
+  - `autoattack`
+- Defense options including:
+  - `None`
+  - `guard`
+  - `adashield`
+  - `self-reminder`
+  - `icd`
+  - `smoothllm`
+  - `spirit_bias` / `spirit_prune` / `spirit_patch` (or short names `bias`, `prune`, `patch`)
 
+## Project Layout
 
-
-## Todo new
-- run through 
-    - [x] GCG
-    - [x] GPTFuzzer
-    - [x] ICA
-    - [x] SURE
-- add python interface
-    - [x] unify the interface to call shell scripts
-    - [x] attack method control
-    - [x] model path control
-    - [x] evaluation control   
-    - [x]  GPU control
-    - [x] dataset control 
-- add strong reject
-    - [x] GCG
-    - [x] GPTFuzzer
-    - [x] ICA
-    - [x] SURE 
-- Change output to ASR
-    - [x] GCG
-    - [x] GPTFuzzer
-    - [x] ICA
-    - [x] SURE 
-
-## Overview
-
-The main goal of this codebase is to:
-1. Take a harmful question and target response
-2. Try to find a sequence of tokens that can make the model generate that harmful response
-3. Use this information to improve model safety
-
-This is done by:
-1. Starting with a random sequence of tokens
-2. Using gradients to find which tokens to change
-3. Testing different combinations of tokens
-4. Evaluating if the attack was successful
-5. Repeating until success or maximum steps reached
-
-
-This project implements several LLM attack techniques:
-
-- **GCG (Greedy Coordinate Gradient)**: An optimization-based attack method that crafts adversarial prompts to bypass LLM safety guardrails.
-- **GPT Fuzzer**: A fuzzing-based approach to discover prompt vulnerabilities.
-- **ICA (In-Context Attack)**: Uses in-context learning to construct harmful attacks.
-- **SURE (Surrogate-based Uncertainty-aware Red-teaming)**: A surrogate model approach for red-teaming LLMs.
-
-## Project Structure
-
-```
-AttackBench/
-├── BOOST/                   # Core implementation of attack methods
-│   ├── Attack_GCG/          # Greedy Coordinate Gradient attack implementation
-│   ├── Attack_GPTFuzzer/    # GPT Fuzzer attack implementation
-│   ├── Attack_ICA/          # In-Context Attack implementation
-│   └── utils/               # Common utilities and helper functions
-├── Dataset/                 # Harmful prompts and targets datasets
-├── Experiments/             # Experiment runners for each attack type
-│   ├── fuzzer_exp.py
-│   ├── gcg_exp.py
-│   ├── ica_exp.py
-│   └── sure_exp.py
-└── Scripts/                 # Shell scripts for running batch experiments
-    └── run_GCG.sh           # Script for parallel GCG attacks using available GPUs
+```text
+SpeechJailbreaker/
+├── BOOST/                  # Core attack implementations and utilities
+├── Dataset/                # Prompt/target datasets
+├── Defenses/               # Defense wrappers and implementations
+├── Defense_prompt/         # Prompt-based defense templates
+├── Experiments/            # Experiment scripts
+├── Scripts/                # Shell entrypoints for each attack
+├── speechjailbreaker/      # Python package modules
+├── strongreject/           # StrongReject evaluation-related code
+└── README.md
 ```
 
 ## Installation
 
+### Option A) Install from PyPI
+
 ```bash
-# ssh to Quest
-ssh -X <netid>@login.quest.northwestern.edu
-
-# Clone the repository
-git clone https://github.com/robinzixuan/AttackBench.git
-
-# (Optional) If you have not previously set up an ssh key for quest,
-# Follow this documentation (https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
-
-# (Optional) If you have not already installed conda
-# Check your Linux architecture
-uname -s
-uname -m
-
-# (Optional) If you see Linux, x86_64, install Miniconda into $HOME/miniconda3 (on Quest)
-cd "$HOME"
-curl -LO https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh -b -p "$HOME/miniconda3"
-
-# (Optional) If you see Linux, aarch64, install Miniconda into $HOME/miniconda3
-cd "$HOME"
-curl -LO https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh
-bash Miniconda3-latest-Linux-aarch64.sh -b -p "$HOME/miniconda3"
-
-# (Optional) Put conda onto your PATH and initialize bash
-echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-conda --version
-conda init bash
-exec bash -l
-
-# Request resources
-srun --account=<account-id> --partition=gengpu --gres=gpu:1 --cpus-per-task=4 --mem=32G --time=02:00:00 --pty bash -l
-
-# Install dependencies
-conda env create -f environment.yml
-
-# Activate the environment
-conda activate xllm_env
-
-# Install vllm
-pip install vllm
-
-# Run the attack
-
+pip install speechjailbreaker
 ```
 
-## Usage
+PyPI package: [speechjailbreaker](https://pypi.org/project/speechjailbreaker/)
 
-### Python API & pip Package
+After installing from PyPI, you can use the Python API directly:
 
-Install in editable mode (recommended for development):
+```python
+from speechjailbreaker import run_attack, AttackConfig
+
+config = AttackConfig(
+    attack="ica",
+    model_path="Qwen/Qwen2-Audio-7B-Instruct",
+    defence="smoothllm",
+    evaluation="strongreject",
+    num_tasks=2,
+)
+exit_code = run_attack(config)
+print("Exit code:", exit_code)
+```
+
+### Option B) Install from source (recommended for development)
+
+### 1) Clone
 
 ```bash
-conda activate xllm_env  # or your conda env
+git clone https://github.com/NWULIST/SpeechJailbreaker.git
+cd SpeechJailbreaker
+```
+
+### 2) Create environment
+
+```bash
+conda env create -f environment.yml
+conda activate xllm_env
+```
+
+If `vllm` is not included by your environment file, install it manually:
+
+```bash
+pip install vllm
+```
+
+### 3) Install package in editable mode
+
+```bash
 pip install -e .
 ```
 
-Then run attacks via CLI or Python API:
+## Quick Start
+
+List supported attacks/defenses:
 
 ```bash
-# CLI (same as Scripts/run_interface.py)
-attackbench --attack ica --model_path Qwen/Qwen2-Audio-7B-Instruct --defence smoothllm
-attackbench --attack jbc --num_tasks 4 --evaluation strongreject
-attackbench --list-attacks
-attackbench --list-defenses
+python Scripts/run_interface.py --list-attacks
+python Scripts/run_interface.py --list-defenses
 ```
 
-Or via Scripts/run_interface.py (delegates to attackbench):
+Run an attack:
 
 ```bash
-python Scripts/run_interface.py --attack ica --model_path Qwen/Qwen2-Audio-7B-Instruct
+python Scripts/run_interface.py \
+  --attack ica \
+  --model_path Qwen/Qwen2-Audio-7B-Instruct \
+  --defence smoothllm \
+  --evaluation strongreject \
+  --num_tasks 2
 ```
 
-Programmatic API:
+### Common arguments
 
-```python
-from attackbench import run_attack, AttackConfig, AttackMethod, DefenseMethod
+- `--attack`: attack method name (required unless listing)
+- `--model_path`: HuggingFace/local model path
+- `--defence`: defense method (default: `None`)
+- `--evaluation`: `default` or `strongreject`
+- `--num_tasks`: number of tasks to run
+- `--batch_size`: batch size per run
+- `--guard`: guard model path (if needed by defense)
+- `--seed`: random seed for reproducibility
+- `--few_shot_num`: few-shot examples (`ica` only)
 
-config = AttackConfig(
-    attack=AttackMethod.ICA,
-    model_path="Qwen/Qwen2-Audio-7B-Instruct",
-    defence=DefenseMethod.SMOOTHLLM,
-    evaluation="strongreject",
-    num_tasks=4,
-)
-exit_code = run_attack(config)
-```
+## Running Specific Scripts
 
-Supported attacks: `pgd`, `fuzzer`, `ica`, `sure`, `reasoning`, `jbc`, `boost_fuzzer`, `pair`, `tap`, `autoattack`.
-
-Supported defenses: `None`, `guard`, `adashield`, `self-reminder`, `icd`, `smoothllm`, `spirit_bias`, `spirit_prune`, `spirit_patch` (or short: `bias`, `prune`, `patch`).
-
-### Running GCG Attacks
-
-The project supports running GCG attacks in parallel across multiple GPUs:
+You can call attack-specific shell runners directly, for example:
 
 ```bash
 bash Scripts/run_GCG.sh
 ```
 
-This script:
-1. Searches for available GPUs with sufficient memory
-2. Runs multiple attack instances in parallel
-3. Saves results to the specified log directory
+Other attack scripts follow the same pattern in `Scripts/` (for example `run_ICA.sh`, `run_SURE.sh`, `run_PAIR.sh`, etc.).
 
-### Configuration
+## Datasets
 
-Edit the `Scripts/run_GCG.sh` file to configure:
-- Target model (`MODEL_PATH`)
-- Whether to add EOS tokens (`ADD_EOS`)
-- Run index for logging purposes (`RUN_INDEX`)
+Example datasets shipped with the repository include:
+- `Dataset/harmful.csv`
+- `Dataset/harmful_targets.csv`
+- `Dataset/Advbench.csv`
 
-### Datasets
+## Results and Logs
 
-The framework comes with several datasets:
-- `harmful.csv`: Contains harmful prompts
-- `harmful_targets.csv`: Contains targets for harmful prompts
-- `Advbench.csv`: Adversarial benchmark dataset
+- Intermediate and final outputs are typically written under `Logs/` and/or `Results/`, depending on the script.
+- For reproducibility, store the command, model version, defense setting, and random seed for each run.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.txt file for details.
-
-## Citation
-
-If you use this code or find it helpful in your research, please consider citing our work.
+This project is licensed under the MIT License. See `LICENSE`.
 
 ## Disclaimer
 
-This tool is intended for research purposes to improve LLM safety. The authors do not condone the use of this framework for malicious purposes or attacks on production systems.
+This project is intended strictly for safety research and red-teaming evaluation. Do not use it for malicious activity or to attack production systems.
