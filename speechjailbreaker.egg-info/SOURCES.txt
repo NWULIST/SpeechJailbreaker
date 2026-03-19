@@ -1,0 +1,13 @@
+LICENSE
+README.md
+pyproject.toml
+speechjailbreaker/__init__.py
+speechjailbreaker/api.py
+speechjailbreaker/config.py
+speechjailbreaker/run.py
+speechjailbreaker.egg-info/PKG-INFO
+speechjailbreaker.egg-info/SOURCES.txt
+speechjailbreaker.egg-info/dependency_links.txt
+speechjailbreaker.egg-info/entry_points.txt
+speechjailbreaker.egg-info/requires.txt
+speechjailbreaker.egg-info/top_level.txt
