@@ -3,14 +3,14 @@ requires = ["setuptools>=45.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "attackbench"
-version = "0.1.0"
-description = "AttackBench: Framework for testing LLM robustness against jailbreak attacks"
+name = "speechjailbreaker"
+version = "0.1.1"
+description = "SpeechJailbreaker: Framework for testing SpeechLLM robustness against jailbreak attacks"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 authors = [
-    {name = "AttackBench Contributors"}
+    {name = "SpeechJailbreaker Contributors"}
 ]
 keywords = ["llm", "jailbreak", "red-teaming", "safety", "attack"]
 classifiers = [
@@ -34,12 +34,12 @@ dev = [
 ]
 
 [project.scripts]
-attackbench = "attackbench.run:main"
+speechjailbreaker = "speechjailbreaker.run:main"
 
 [project.urls]
-Homepage = "https://github.com/robinzixuan/AttackBench"
-Repository = "https://github.com/robinzixuan/AttackBench"
+Homepage = "https://github.com/NWULIST/SpeechJailbreaker"
+Repository = "https://github.com/NWULIST/SpeechJailbreaker"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["attackbench*"]
+include = ["speechjailbreaker*"]

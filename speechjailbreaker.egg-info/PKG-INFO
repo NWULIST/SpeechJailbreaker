@@ -1,11 +1,11 @@
 Metadata-Version: 2.4
-Name: attackbench
-Version: 0.1.0
-Summary: AttackBench: Framework for testing LLM robustness against jailbreak attacks
-Author: AttackBench Contributors
+Name: speechjailbreaker
+Version: 0.1.1
+Summary: SpeechJailbreaker: Framework for testing SpeechLLM robustness against jailbreak attacks
+Author: SpeechJailbreaker Contributors
 License: MIT
-Project-URL: Homepage, https://github.com/robinzixuan/AttackBench
-Project-URL: Repository, https://github.com/robinzixuan/AttackBench
+Project-URL: Homepage, https://github.com/NWULIST/SpeechJailbreaker
+Project-URL: Repository, https://github.com/NWULIST/SpeechJailbreaker
 Keywords: llm,jailbreak,red-teaming,safety,attack
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Science/Research
