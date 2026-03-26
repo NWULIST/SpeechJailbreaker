@@ -86,11 +86,11 @@ if __name__ == "__main__":
     )
     
     # TAP algorithm parameters
-    parser.add_argument('--depth', type=int, default=10,
+    parser.add_argument('--depth', type=int, default=4,
                         help='Maximum depth of the tree-of-thought search')
-    parser.add_argument('--width', type=int, default=10,
+    parser.add_argument('--width', type=int, default=3,
                         help='Maximum width (number of branches to keep) at each level')
-    parser.add_argument('--branching_factor', type=int, default=4,
+    parser.add_argument('--branching_factor', type=int, default=2,
                         help='Number of new prompts to generate at each branch')
     parser.add_argument('--n_streams', type=int, default=1,
                         help='Number of concurrent attack streams')

@@ -20,7 +20,7 @@ RANDOM_SEED=42                 # Set to empty string for different samples each 
 BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
 MAX_PARALLEL=4               # Maximum batches to run simultaneously
 RETRY_DELAY=5
-LOCK_DIR="/tmp/gpu_locks"
+LOCK_DIR="/tmp/gpu_locks_${HOSTNAME}_$(id -u)"
 
 
 mkdir -p "$LOCK_DIR"
@@ -174,7 +174,7 @@ run_batch_job_with_indices() {
         --guard "$guard" \
         --indices "$indices_str" \
         --n_iterations 3 \
-        --n_streams 3 \
+        --n_streams 30 \
         --keep_last_n 4 \
         --run_identifier "$run_identifier" \
         --batch_size "$BATCH_SIZE" \

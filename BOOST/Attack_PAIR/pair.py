@@ -14,7 +14,6 @@ from typing import NamedTuple
 from datasets import load_dataset
 import json
 #from loggers import WandBLogger
-from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
 
 import argparse
 #from judges import load_judge
@@ -52,20 +51,25 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
     if getattr(args, 'store_folder', None):
         os.makedirs(args.store_folder, exist_ok=True)
 
-
+    base_path = os.path.expanduser('~') 
     system_message = None
-    if args.defence == 'adashield':
-        base_path = os.path.expanduser('~') 
-        defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
 
+    if args.defence == 'adashield':
+        defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
         if os.path.isfile(defense_prompt_path):
             with open(defense_prompt_path, "r") as f:
                 system_message = json.load(f)["prompt"]
                 print(system_message)
         else:
             raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
-    elif args.defence == 'smoothllm':
-        print('smoothllm defense, passing for now')
+    elif args.defence == 'adaptive_adashield':
+        defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
+        if os.path.isfile(defense_prompt_path):
+            with open(defense_prompt_path, "r") as f:
+                appended_message = json.load(f)["prompt"]
+                print("will append adashield message to every prompt")
+        else:
+            raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
     elif args.defence != '' and args.defence != 'guard' and args.defence != 'None':
         print('passing')
         pass
@@ -75,29 +79,18 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
 
 
     if 'gpt' in args.target_model and 'audio' not in args.target_model:
-        print(args.target_model)
         target_model = OpenAILLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'claude' in args.target_model:
         target_model = ClaudeLLM(args.target_model, args.claude_key)
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model, args.gemini_key)
-    elif 'gpt-audio' in args.target_model:
+    elif 'mini-audio' in args.target_model or 'gpt-audio' in args.target_model:
         print(args.target_model)
         target_model = OpenAIAudioLLM(args.target_model, args.openai_key, system_message=system_message)
-    elif 'audio' in args.target_model.lower():
-        print(args.target_model)
+    elif 'audio' in args.target_model.lower() or 'gemma' in args.target_model.lower():
         target_model = LocalSpeechLLM(args.target_model, system_message=system_message)
     else:
         target_model = LocalLLM(args.target_model, system_message=system_message)
-
-    if args.defence == "smoothllm":
-        base_model = target_model
-        selected_pert = "RandomSwapPerturbation"
-        selected_num_copies = 5
-        selected_pert_pct = 0.15
-        target_model = smoothllmWrapper(base_model, pert_type=selected_pert, pert_pct=selected_pert_pct, num_copies=selected_num_copies)
-        print(f"[SMOOTHLLM] Applying {selected_pert} with {selected_num_copies} num_copies and {selected_pert_pct}")
-
 
     ########EVALUATION#############################################################################
 
@@ -158,6 +151,10 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
             adv_prompt_list = [attack["prompt"] for attack in extracted_attack_list]
             improv_list = [attack["improvement"] for attack in extracted_attack_list]
 
+            if args.defence == 'adaptive_adashield' and appended_message:
+                # Append the defense text to the end of each adversarial prompt
+                adv_prompt_list = [f"{prompt}\n\n{appended_message}" for prompt in adv_prompt_list]
+
             #memory check
             memory_after = memory_usage_psutil()
             print(f"Memory before: {memory_before} MB")
@@ -168,7 +165,7 @@ def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
             if isinstance(target_model, LocalSpeechLLM):
                 # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
                 audio_prompts = [origin_question_audio] * len(adv_prompt_list)
-                target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
+                target_response_list = target_model.generate_batch(prompts=adv_prompt_list, audios=audio_prompts, max_tokens=512)
             elif isinstance(target_model, OpenAIAudioLLM):
                  # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
                 audio_prompts = [origin_question_audio] * len(adv_prompt_list)

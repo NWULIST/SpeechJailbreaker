@@ -21,7 +21,7 @@ RANDOM_SEED=42                 # Set to empty string for different samples each 
 BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
 MAX_PARALLEL=4               # Maximum batches to run simultaneously
 RETRY_DELAY=5
-LOCK_DIR="/tmp/gpu_locks"
+LOCK_DIR="/tmp/gpu_locks_${HOSTNAME}_$(id -u)"
 
 mkdir -p "$LOCK_DIR"
 

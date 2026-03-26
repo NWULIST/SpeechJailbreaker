@@ -74,6 +74,30 @@ def prune(on_topic_scores=None,
     np.random.shuffle(shuffled_scores)
     shuffled_scores.sort(reverse=True)
 
+    """
+    def get_first_k(list_):
+        width = min(attack_params['width'], len(list_))
+        truncated_list = []
+        
+        # Pass 1: Prioritize and add all elements that have a score > 0
+        for i in range(len(shuffled_scores)):
+            if shuffled_scores[i][0] > 0:
+                truncated_list.append(list_[shuffled_scores[i][1]])
+            # Stop immediately if we hit the width limit
+            if len(truncated_list) == width:
+                return truncated_list
+                
+        # Pass 2: If the list is still smaller than the width, pad it with the remaining items (score <= 0)
+        if len(truncated_list) < width:
+            for i in range(len(shuffled_scores)):
+                if shuffled_scores[i][0] <= 0:
+                    truncated_list.append(list_[shuffled_scores[i][1]])
+                # Stop padding once we hit the width limit
+                if len(truncated_list) == width:
+                    return truncated_list
+                    
+        return truncated_list
+    """
     def get_first_k(list_):
         width = min(attack_params['width'], len(list_))
         truncated_list = [list_[shuffled_scores[i][1]] for i in range(width) if shuffled_scores[i][0] > 0]
@@ -138,16 +162,31 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
     if getattr(args, 'store_folder', None):
         os.makedirs(args.store_folder, exist_ok=True)
 
+    base_path = os.path.expanduser('~') 
     system_message = None
-    if args.defence != '' and args.defence != 'guard' and args.defence != 'None':
-        defence_path = f"/home/niy0569/SpeechJailbreaker/Defense_prompt/{args.defence}.json"
-
-        if os.path.isfile(defence_path):
-            with open(defence_path, "r") as f:
+    if args.defence == 'adashield':
+        defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
+        if os.path.isfile(defense_prompt_path):
+            with open(defense_prompt_path, "r") as f:
                 system_message = json.load(f)["prompt"]
                 print(system_message)
         else:
-            raise FileNotFoundError(f"Defense file not found: {defence_path}")
+            raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
+    elif args.defence == 'adaptive_adashield':
+        defense_prompt_path = os.path.join(base_path, 'SpeechJailbreaker', 'Defense_prompt', 'adashield.json')
+        if os.path.isfile(defense_prompt_path):
+            with open(defense_prompt_path, "r") as f:
+                appended_message = json.load(f)["prompt"]
+                print("will append adashield message to every prompt")
+        else:
+            raise FileNotFoundError(f"Defense file not found: {defense_prompt_path}")
+    elif args.defence == 'smoothllm':
+        print('smoothllm defense, passing for now')
+    elif args.defence != '' and args.defence != 'guard' and args.defence != 'None':
+        print('passing')
+        pass
+    else:
+        print("No Defense")
 
         
     if 'gpt' in args.target_model and 'audio' not in args.target_model:
@@ -157,7 +196,7 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
         target_model = ClaudeLLM(args.target_model)
     elif 'gemini' in args.target_model:
         target_model = GeminiLLM(args.target_model)
-    elif 'gpt-audio' in args.target_model:
+    elif 'mini-audio' in args.target_model:
         print(args.target_model)
         target_model = OpenAIAudioLLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'audio' in args.target_model.lower():
@@ -287,15 +326,16 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
             #   QUERY, ASSESS & LOG 
             ############################################################
             if isinstance(target_model, LocalSpeechLLM):
+                # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
                 audio_prompts = [origin_question_audio] * len(adv_prompt_list)
-                target_response_list = target_model.generate_batch(audio_prompts, adv_prompt_list, max_tokens=512)
+                target_response_list = target_model.generate_batch(prompts=adv_prompt_list, audios=audio_prompts, max_tokens=512)
             elif isinstance(target_model, OpenAIAudioLLM):
                  # For audio models, use origin_question_audio for prompts and adv_prompt_list for texts
                 audio_prompts = [origin_question_audio] * len(adv_prompt_list)
                 target_response_list = target_model.generate_batch(prompts=adv_prompt_list, audios=audio_prompts,  max_tokens=512)
             else:
+                # For other models, use generate_batch with text prompts
                 target_response_list = target_model.generate_batch(adv_prompt_list, max_tokens=512)
-            print("Finished getting target responses.")
 
             judge_scores = []
             is_successful_jailbreak = False

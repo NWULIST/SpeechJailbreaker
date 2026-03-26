@@ -75,7 +75,7 @@ def autograde_response(question: str, response: str) -> AutograderResponse:
     model_input = autograder_prompt.format(prompt=question, response=response)
     with openai.OpenAI() as client:
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": model_input}],
             temperature=0.0,
             max_tokens=1000,
