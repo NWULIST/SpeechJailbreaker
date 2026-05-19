@@ -1,5 +1,5 @@
 """
-AttackBench CLI entry point. Invoked via `attackbench` or `python -m attackbench.run`.
+AttackBench CLI entry point. Invoked via `speechjailbreaker` or `python -m speechjailbreaker.run`.
 """
 
 import argparse
@@ -11,8 +11,8 @@ try:
 except ImportError:
     pass
 
-from attackbench.config import ATTACK_TO_SCRIPT, list_attacks, list_defenses, AttackConfig
-from attackbench.api import run_attack
+from speechjailbreaker.config import ATTACK_TO_SCRIPT, list_attacks, list_defenses, AttackConfig
+from speechjailbreaker.api import run_attack
 
 
 def main():

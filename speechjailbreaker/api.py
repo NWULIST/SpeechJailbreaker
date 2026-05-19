@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from attackbench.config import (
+from speechjailbreaker.config import (
     ATTACK_TO_SCRIPT,
     AttackConfig,
     SPIRIT_SHORT_TO_FULL,
@@ -25,12 +25,12 @@ def _resolve_project_root(scripts_dir: Optional[str] = None) -> Path:
     cwd = Path.cwd()
     if (cwd / "Scripts").exists():
         return cwd
-    if (cwd / "attackbench").exists():
+    if (cwd / "speechjailbreaker").exists():
         return cwd
-    # Fallback: parent of attackbench package
+    # Fallback: parent of speechjailbreaker package
     mod = __file__
     pkg_dir = Path(mod).resolve().parent
-    # attackbench/ is inside project root
+    # speechjailbreaker/ is inside project root
     return pkg_dir.parent
 
 

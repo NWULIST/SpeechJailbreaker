@@ -3,10 +3,10 @@
 Unified entry point for running attack scripts.
 
 Can be run directly:
-  python Scripts/run_interface.py --attack ica --model_path Qwen/Qwen2-Audio-7B-Instruct
+  python Scripts/run_interface.py --attack ica --model_path Qwen/Qwen2-Audio-7B-Instruct --evaluation strongreject
 
-Or via the installed attackbench CLI (after pip install -e .):
-  attackbench --attack ica --model_path Qwen/Qwen2-Audio-7B-Instruct
+Or via the installed speechjailbreaker CLI (after pip install -e .):
+  speechjailbreaker --attack ica --model_path Qwen/Qwen2-Audio-7B-Instruct
 """
 
 import sys
@@ -24,8 +24,8 @@ try:
 except ImportError:
     pass
 
-# Delegate to attackbench package
-from attackbench.run import main
+# Delegate to speechjailbreaker package
+from speechjailbreaker.run import main
 
 if __name__ == "__main__":
     main()
