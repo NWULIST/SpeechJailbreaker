@@ -30,7 +30,7 @@ def set_random_seed(seed=42):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ICA Attack')
-    parser.add_argument('--model_path', type=str, default='gpt-3.5-turbo-0125',
+    parser.add_argument('--model_path', type=str, default='gpt-5.4',
                         help='mutate model path')
     parser.add_argument('--defence', type=str, default=None, help='defence file location')
     parser.add_argument('--guard', type=str, default=None, help='guard model')
@@ -50,6 +50,11 @@ if __name__ == "__main__":
     parser.add_argument('--evaluation', type=str, default='default', choices=['default', 'strongreject'], help='Evaluation method for attack success: "default" (original) or "strongreject" (use strongreject autograder)')
     #SmoothLLM arguments
     parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
+    parser.add_argument(
+        '--evaluate_locally',
+        action='store_true',
+        help='Load attack model locally (HuggingFace) rather than via API.'
+    )
     add_model_args(parser)
 
     args = parser.parse_args()
