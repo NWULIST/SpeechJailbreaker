@@ -54,11 +54,11 @@ if __name__ == "__main__":
     parser.add_argument('--guard', type=str, default=None, help='guard model')
     
     # Model parameters
-    parser.add_argument('--target_model', type=str, default='gpt-3.5-turbo',
+    parser.add_argument('--target_model', type=str, default='gpt-5.4',
                         help='The target model to attack')
-    parser.add_argument('--attack_model', type=str, default='gpt-4',
+    parser.add_argument('--attack_model', type=str, default='gpt-5.4',
                         help='The attacker model (for generating jailbreak prompts)')
-    parser.add_argument('--evaluator_model', type=str, default='gpt-3.5-turbo',
+    parser.add_argument('--evaluator_model', type=str, default='gpt-5.4',
                         help='The evaluator model (for scoring prompts)')
     parser.add_argument('--attack_max_n_tokens', type=int, default=500,
                         help='Maximum number of tokens for attack model generation')
@@ -124,6 +124,11 @@ if __name__ == "__main__":
 
     #SmoothLLM arguments
     parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
+    parser.add_argument(
+        '--evaluate_locally',
+        action='store_true',
+        help='Load attack model locally (HuggingFace) rather than via API.'
+    )
 
     args = parser.parse_args()
 

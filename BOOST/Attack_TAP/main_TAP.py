@@ -337,6 +337,7 @@ if __name__ == '__main__':
                  "gpt-3.5-turbo", 
                  "gpt-4", 
                  "gpt-4-turbo", 
+                 "gpt-5.4",
                  "gpt-4-1106-preview", # This is same as gpt-4-turbo
                  'llama-2-api-model']
     )
@@ -382,7 +383,7 @@ if __name__ == '__main__':
     ############ Evaluator model parameters ##########
     parser.add_argument(
         "--evaluator-model",
-        default="gpt-3.5-turbo",
+        default="gpt-5.4",
         help="Name of evaluator model.",
         choices=["gpt-3.5-turbo", 
                  "gpt-4", 

@@ -214,7 +214,7 @@ def load_indiv_model(model_name):
     
     common.MODEL_NAME = model_name
     
-    if model_name in ["gpt-3.5-turbo", "gpt-4", 'gpt-4-1106-preview']:
+    if model_name in ["gpt-3.5-turbo", "gpt-5.4", "gpt-4", 'gpt-4-1106-preview']:
         lm = GPT(model_name)
     elif model_name == "palm-2":
         lm = PaLM(model_name)
@@ -298,6 +298,10 @@ def get_model_path_and_template(model_name):
         "Qwen/Qwen2-Audio-7B-Instruct": {
             "path": "Qwen/Qwen2-Audio-7B-Instruct",
             "template": "Qwen2-Audio-7B-Instruct"
+        },
+        "Qwen/Qwen2.5-7B-Instruct": {
+            "path": "Qwen/Qwen2.5-7B-Instruct",
+            "template": "qwen-7b-chat"
         },
         "gpt-4o":{
             "path":"gpt-4o",

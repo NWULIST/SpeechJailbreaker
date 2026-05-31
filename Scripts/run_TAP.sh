@@ -1,19 +1,22 @@
-#!/bin/bash
+git #!/bin/bash
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/e33046/.cache/"
+export HF_HOME="/projects/e33046/qxq9828/.cache/huggingface"
+mkdir -p "$HF_HOME"
 # Add project root to PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export PYTHONPATH="${PYTHONPATH}:$(pwd):$(pwd)/Ming"
 #PYTHON_SCRIPT="../Experiments/tap_exp.py"
 PYTHON_SCRIPT="Experiments/tap_exp.py"
 MODEL_PATH="google/gemma-7b-it"
+ATTACK_MODEL="Qwen/Qwen2.5-7B-Instruct"
 EVALUATION="default"
 RUN_INDEX=2
 ADD_EOS=False
 EOS_NUM="10"
 defence=""
 guard=""
+EVALUATE_LOCALLY=""
 # GPU
-GPU_MEMORY=40000
+GPU_MEMORY=38000
 NUM_GPU_SEARCH=1
 NUM_TASKS=100 # Number of tasks to run
 
@@ -21,8 +24,8 @@ NUM_TASKS=100 # Number of tasks to run
 DATASET_SIZE=4724
 
 RANDOM_SEED=42                 # Set to empty string for different samples each run
-BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
-MAX_PARALLEL=2               # Maximum batches to run simultaneously
+BATCH_SIZE=1                 # Process 1 item per GPU (reduced for Ming OOM prevention)
+MAX_PARALLEL=1               # Maximum batches to run simultaneously
 RETRY_DELAY=5
 
 #For SmoothLLM Defense
@@ -36,8 +39,12 @@ mkdir -p "$LOCK_DIR"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --model_path)
+    --model_path|--target_model)
       MODEL_PATH="$2"
+      shift 2
+      ;;
+    --attack_model)
+      ATTACK_MODEL="$2"
       shift 2
       ;;
     --guard)
@@ -68,6 +75,10 @@ while [[ $# -gt 0 ]]; do
     --num_tasks)
       NUM_TASKS="$2"
       shift 2
+      ;;
+    --evaluate_locally)
+      EVALUATE_LOCALLY="--evaluate_locally"
+      shift
       ;;
     *)
       shift
@@ -170,6 +181,12 @@ run_batch_job_with_indices() {
     done
 
     echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str)..."
+
+    if [[ "${MODEL_PATH,,}" == *"qwen2-audio"* || "${MODEL_PATH,,}" == *"ming"* ]]; then
+        echo "Audio model detected. Waiting 120 seconds for memory to clear..."
+        sleep 120
+    fi
+
     local log_file="${LOG_PATH}/${run_identifier}_${batch_id}.log"
 
     ###########################################
@@ -177,6 +194,7 @@ run_batch_job_with_indices() {
     ###########################################
     CUDA_VISIBLE_DEVICES=$gpu python -u "$PYTHON_SCRIPT" \
         --target_model "$MODEL_PATH" \
+        --attack_model "$ATTACK_MODEL" \
         --defence "$defence" \
         --evaluation "$EVALUATION" \
         --guard "$guard" \
@@ -184,6 +202,7 @@ run_batch_job_with_indices() {
         --run_identifier "$run_identifier" \
         --batch_size "$BATCH_SIZE" \
         --num_copies "$NUM_COPIES" \
+        $EVALUATE_LOCALLY \
         &> "$log_file"
 
 
