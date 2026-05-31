@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser.add_argument('--start_index', type=int, default=None, help='Start index of batch (deprecated, use --indices)')
     parser.add_argument('--end_index', type=int, default=None, help='End index of batch (deprecated, use --indices)')
     parser.add_argument('--indices', type=str, default=None, help='Comma-separated list of indices to process')
-    parser.add_argument('--model_path', type=str, default='gpt-3.5-turbo-0125',
+    parser.add_argument('--model_path', type=str, default='gpt-5.4',
                         help='mutate model path')
     parser.add_argument('--target_model', type=str, default='google/gemma-7b-it',
                         help='The target model')
@@ -49,6 +49,11 @@ if __name__ == "__main__":
                         help='Evaluation method')
     #SmoothLLM arguments
     parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
+    parser.add_argument(
+        '--evaluate_locally',
+        action='store_true',
+        help='Load attack model locally (HuggingFace) rather than via API.'
+    )
     add_model_args(parser)
 
     args = parser.parse_args()

@@ -5,8 +5,9 @@ set -e
 # MODULES & ENV
 ###########################################
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/e33046/.cache/"
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export HF_HOME="/projects/e33046/qxq9828/.cache/huggingface"
+mkdir -p "$HF_HOME"
+export PYTHONPATH="${PYTHONPATH}:$(pwd):$(pwd)/Ming"
 
 ###########################################
 # CONFIG
@@ -19,7 +20,8 @@ EVALUATION="strongreject"
 RUN_INDEX="$(date +%Y-%m-%d_%H-%M-%S)_$RANDOM"
 defence=""
 guard=""
-GPU_MEMORY=40000               # Minimum free memory per GPU in MiB
+EVALUATE_LOCALLY=""
+GPU_MEMORY=38000               # Minimum free memory per GPU in MiB
 #NUM_GPU_SEARCH=7             # Highest GPU index to search
 
  
@@ -28,10 +30,10 @@ NUM_GPU_SEARCH=1
 #start with 2 just to gauge that it works
 #NUM_TASKS=2
 
-#testing on one gpu 
-MAX_PARALLEL=2
+#testing on one gpu
+MAX_PARALLEL=1
 
-#BATCH_SIZE=1
+BATCH_SIZE=1
 DATASET_SIZE=4724
 
 #For SmoothLLM Defense
@@ -47,7 +49,7 @@ LOCK_DIR="/tmp/gpu_locks$(id -u)"
 #add parsing so logging files are correctly labeled for the appropriate model
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --model_path)
+    --model_path|--target_model)
       MODEL_PATH="$2"
       shift 2
       ;;
@@ -102,6 +104,11 @@ while [[ $# -gt 0 ]]; do
     --seed)
       RANDOM_SEED="$2"
       shift 2
+      ;;
+
+    --evaluate_locally)
+      EVALUATE_LOCALLY="--evaluate_locally"
+      shift
       ;;
 
     --harmful_dataset)
@@ -203,6 +210,12 @@ run_batch_job_with_indices() {
     done
 
     echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str)..."
+
+    if [[ "${MODEL_PATH,,}" == *"qwen2-audio"* || "${MODEL_PATH,,}" == *"ming"* ]]; then
+        echo "Audio model detected. Waiting 120 seconds for memory to clear..."
+        sleep 120
+    fi
+
     local log_file="${LOG_PATH}/batch_${batch_id}.log"
 
     ###########################################
@@ -222,6 +235,7 @@ run_batch_job_with_indices() {
         --max-new-tokens 256 \
         --num_copies "$NUM_COPIES"\
         $SEED_ARG\
+        $EVALUATE_LOCALLY\
         &> "$log_file"
 
     # Extract results for each item in the batch
