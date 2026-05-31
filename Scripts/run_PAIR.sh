@@ -1,43 +1,53 @@
 #!/bin/bash
+#
+# Scripts/run_PAIR.sh
+# -------------------
+
 module load cuda/cuda-12.1.0-openmpi-4.1.4
+export HF_HOME="/projects/e33046/qxq9828/.cache/huggingface"
+mkdir -p "$HF_HOME"
 # Add project root to PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-#PYTHON_SCRIPT="../Experiments/pair_exp.py"
+export PYTHONPATH="${PYTHONPATH}:$(pwd):$(pwd)/Ming"
 PYTHON_SCRIPT="Experiments/pair_exp.py"
-MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
+
+# Updated Defaults
+MODEL_PATH="inclusionAI/Ming-lite-omni-1.5"
+ATTACK_MODEL="gpt-5.4"
 EVALUATION="default"
 RUN_INDEX="$(date +%Y-%m-%d_%H-%M-%S)_$RANDOM"
 ADD_EOS=False
 EOS_NUM="10"
 defence=""
 guard=""
-# GPU
-GPU_MEMORY=40000
-NUM_GPU_SEARCH=1
-NUM_TASKS=100 # Number of tasks to run
+EVALUATE_LOCALLY=""
 
-#DATASET_SIZE=519              # Total size of your dataset
+# GPU Settings
+# Lowered GPU_MEMORY requirement slightly to ensure a 40GB card isn't skipped due to overhead
+GPU_MEMORY=38000
+NUM_GPU_SEARCH=1
+NUM_TASKS=100 
+
 DATASET_SIZE=4724
-RANDOM_SEED=42                 # Set to empty string for different samples each run
-BATCH_SIZE=25                 # Process 10 items per GPU (adjust based on memory)
-MAX_PARALLEL=2               # Maximum batches to run simultaneously
+RANDOM_SEED=42                 
+# DRASCTICALLY REDUCED FOR MING OOM PREVENTION
+BATCH_SIZE=1                 
+MAX_PARALLEL=1               
 RETRY_DELAY=5
 
+# For SmoothLLM Defense
+NUM_COPIES=6   
 
-#For SmoothLLM Defense
-NUM_COPIES=6   #default num_copies number
-
-#LOCK_DIR="/tmp/gpu_locks"
-#for dealing with stale lock issue
 LOCK_DIR="/tmp/gpu_locks$(id -u)"
-
-
 mkdir -p "$LOCK_DIR"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --model_path)
+    --model_path|--target_model)
       MODEL_PATH="$2"
+      shift 2
+      ;;
+    --attack_model)
+      ATTACK_MODEL="$2"
       shift 2
       ;;
     --guard)
@@ -68,6 +78,10 @@ while [[ $# -gt 0 ]]; do
       NUM_TASKS="$2"
       shift 2
       ;;
+    --evaluate_locally)
+      EVALUATE_LOCALLY="--evaluate_locally"
+      shift
+      ;;
     *)
       shift
       ;;
@@ -95,9 +109,7 @@ else
     exit 1
 fi
 
-
 INDICES_FILE="${LOG_PATH}/selected_indices_${run_identifier}.txt"
-
 
 ###########################################
 # CLEANUP ON INTERRUPT
@@ -170,7 +182,7 @@ run_batch_job_with_indices() {
     echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str)..."
 
     # wait for audio models to build
-    if [[ "${MODEL_PATH,,}" == *"Qwen/Qwen2-Audio-7B-Instruct"* ]]; then
+    if [[ "${MODEL_PATH,,}" == *"qwen2-audio"* || "${MODEL_PATH,,}" == *"ming"* ]]; then
         echo "Audio model detected. Waiting 120 seconds for memory to clear..."
         sleep 120
     fi
@@ -182,18 +194,19 @@ run_batch_job_with_indices() {
     ###########################################
     CUDA_VISIBLE_DEVICES=$gpu python -u "$PYTHON_SCRIPT" \
         --target_model "$MODEL_PATH" \
+        --attack_model "$ATTACK_MODEL" \
         --defence "$defence" \
         --evaluation "$EVALUATION" \
         --guard "$guard" \
         --indices "$indices_str" \
         --n_iterations 3 \
-        --n_streams 10 \
+        --n_streams 5 \
         --keep_last_n 4 \
         --run_identifier "$run_identifier" \
         --batch_size "$BATCH_SIZE" \
         --num_copies "$NUM_COPIES" \
+        $EVALUATE_LOCALLY \
         &> "$log_file"
-
 
     echo "Batch $batch_id finished, unlocking GPU $gpu"
     unlock_gpu "$gpu"
@@ -212,14 +225,12 @@ if [[ "$NUM_TASKS" -gt "$DATASET_SIZE" ]]; then
     exit 1
 fi
 
-
 ###########################################
 # GENERATE RANDOM INDICES
 ###########################################
 echo "Generating $NUM_TASKS random indices from dataset of size $DATASET_SIZE..."
 
 if [[ -n "$RANDOM_SEED" ]]; then
-    # Use Python to generate random indices with a seed for reproducibility
     python3 -c "
 import random
 random.seed($RANDOM_SEED)
@@ -229,7 +240,6 @@ for idx in indices:
 " > "$INDICES_FILE"
     echo "Using random seed: $RANDOM_SEED (results will be reproducible)"
 else
-    # Generate random indices without seed (different each run)
     python3 -c "
 import random
 indices = random.sample(range($DATASET_SIZE), $NUM_TASKS)
@@ -241,7 +251,6 @@ fi
 
 echo "Selected indices saved to: $INDICES_FILE"
 
-# Read indices into array
 mapfile -t SELECTED_INDICES < "$INDICES_FILE"
 
 ###########################################
@@ -252,10 +261,7 @@ echo "Launching $num_batches batches (batch size: $BATCH_SIZE) with maximum $MAX
 
 batch_id=1
 for ((i=0; i<NUM_TASKS; i+=BATCH_SIZE)); do
-    # Get slice of indices for this batch
     batch_indices=("${SELECTED_INDICES[@]:i:BATCH_SIZE}")
-    
-    # Convert array to comma-separated string
     indices_str=$(IFS=,; echo "${batch_indices[*]}")
     
     echo "Batch $batch_id: processing indices [$indices_str]"
@@ -264,19 +270,10 @@ for ((i=0; i<NUM_TASKS; i+=BATCH_SIZE)); do
     PIDS+=($!)
     batch_id=$((batch_id + 1))
 
-
-
-    # Wait if the number of running batches reaches MAX_PARALLEL
     while [[ $(jobs -rp | wc -l) -ge $MAX_PARALLEL ]]; do
         sleep 1
     done
 done
 
-# Wait for all remaining batches
 wait
-
-
 echo "All batches completed."
-
-
-
