@@ -2,7 +2,7 @@
 from Defenses.SmoothLLM.smoothllm import SmoothLLM
 from Defenses.SmoothLLM.smoothllm import Defense
 from Defenses.SmoothLLM.smooth_prompt import smooth_prompt
-from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAIAudioLLM
+from BOOST.utils.llm import OpenAIAudioLLM
 import torch
 import threading
 

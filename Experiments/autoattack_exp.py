@@ -75,6 +75,11 @@ if __name__ == "__main__":
                         help='Path to the harmful questions dataset')
     parser.add_argument('--targets_dataset', type=str, default='Dataset/harmful_targets.csv',
                         help='Path to the harmful targets dataset')
+    parser.add_argument(
+                        "--dataset_split", type=str, default="train",
+                        choices=["train", "cn"],
+                        help="AABench split: 'train' (English/default) or 'cn' (Chinese)",
+                    )
 
     # Evaluation method
     parser.add_argument('--evaluation', type=str, default='default',
@@ -82,10 +87,15 @@ if __name__ == "__main__":
                         help='Evaluation method for attack success')
     #SmoothLLM arguments
     parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
-    
+
     # Base directory for audio files
     parser.add_argument('--base_dir', type=str, default='/projects/e33046/AudioJailbreak',
                         help='Base directory for audio files')
+    parser.add_argument(
+        '--evaluate_locally',
+        action='store_true',
+        help='Load attack model locally (HuggingFace) rather than via API.'
+    )
     args = parser.parse_args()
 
 

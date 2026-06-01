@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/e33046/.cache/"
+export HF_HOME="/projects/e33046/qxq9828/.cache/huggingface"
+mkdir -p "$HF_HOME"
+export PYTHONPATH="${PYTHONPATH}:$(pwd):$(pwd)/Ming"
 
 PYTHON_SCRIPT="./Experiments/autoattack_exp.py"
 MODEL_PATH="Qwen/Qwen2-Audio-7B-Instruct"
@@ -9,6 +11,7 @@ EVALUATION="strongreject"
 RUN_INDEX="$(date +%Y-%m-%d_%H-%M-%S)_$RANDOM"
 defence=""
 guard=""
+EVALUATE_LOCALLY=""
 # AutoAttack specific parameters
 NORM="Linf"
 EPS="0.3"
@@ -18,7 +21,7 @@ MAX_NEW_TOKENS=512
 BASE_DIR="/projects/e33046/AABench"
 
 # GPU
-GPU_MEMORY=40000
+GPU_MEMORY=38000
 NUM_GPU_SEARCH=1
 NUM_TASKS=3
 
@@ -27,13 +30,13 @@ NUM_COPIES=6   #default num_copies number
 
 BATCH_SIZE=1
 DATASET_SIZE=4724
-MAX_PARALLEL=2
+MAX_PARALLEL=1
 RETRY_DELAY=5
 LOCK_DIR="/tmp/gpu_locks_${HOSTNAME}_$(id -u)_auto"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --model_path) MODEL_PATH="$2"; shift 2 ;;
+    --model_path|--target_model) MODEL_PATH="$2"; shift 2 ;;
     --guard) guard="$2"; shift 2 ;;
     --evaluation) EVALUATION="$2"; shift 2 ;;
     --run_index) RUN_INDEX="$2"; shift 2 ;;
@@ -50,6 +53,7 @@ while [[ $# -gt 0 ]]; do
     --num_copies) NUM_COPIES="$2"; shift 2 ;;
     --base_dir) BASE_DIR="$2"; shift 2 ;;
     --seed) RANDOM_SEED="$2"; shift 2 ;;
+    --evaluate_locally) EVALUATE_LOCALLY="--evaluate_locally"; shift ;;
     *) shift ;;
   esac
 done
@@ -139,6 +143,12 @@ run_batch_job_with_indices() {
     done
 
     echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str)..."
+
+    if [[ "${MODEL_PATH,,}" == *"qwen2-audio"* || "${MODEL_PATH,,}" == *"ming"* ]]; then
+        echo "Audio model detected. Waiting 120 seconds for memory to clear..."
+        sleep 120
+    fi
+
     local log_file="${LOG_PATH}/batch_${batch_id}.log"
 
     SEED_ARG=""
@@ -160,6 +170,7 @@ run_batch_job_with_indices() {
         --base_dir "$BASE_DIR" \
         --num_copies "$NUM_COPIES"\
         $SEED_ARG \
+        $EVALUATE_LOCALLY \
         &> "$log_file"
 
     # Extract RESULT lines

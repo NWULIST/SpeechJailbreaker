@@ -3,8 +3,19 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import csv
 import pandas as pd
-from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import OpenAILLM, LocalSpeechLLM, OpenAIAudioLLM
-#from BOOST.Attack_GPTFuzzer.gptfuzzer.llm import LocalLLM, ClaudeLLM, GeminiLLM
+# Unified LLM imports. OpenAILLM is now an alias of ProxyLLM (Responses
+# API through the gateway); see BOOST/utils/llm.py. ClaudeLLM and
+# GeminiLLM were previously referenced without being imported — that
+# latent NameError is fixed here.
+from BOOST.utils.llm import (
+    ProxyLLM,
+    OpenAILLM,        # alias of ProxyLLM
+    LocalLLM,
+    LocalSpeechLLM,
+    OpenAIAudioLLM,
+    ClaudeLLM,
+    GeminiLLM,
+)
 import random
 random.seed(100)
 import logging
@@ -153,6 +164,7 @@ def tap_attack(args, base_dir="/projects/e33046/AABench"):
         
     if 'gpt' in args.target_model and 'audio' not in args.target_model:
         print(args.target_model)
+        # OpenAILLM is now an alias for ProxyLLM (see BOOST/utils/llm.py).
         target_model = OpenAILLM(args.target_model, args.openai_key, system_message=system_message)
     elif 'claude' in args.target_model:
         target_model = ClaudeLLM(args.target_model, args.claude_key)

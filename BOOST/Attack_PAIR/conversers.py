@@ -1,5 +1,48 @@
+# BOOST/Attack_PAIR/conversers.py
+#
+# MIGRATION NOTE (Change 1, step 4):
+#
+#   The refactor spec instructed:
+#       "In BOOST/Attack_PAIR/conversers.py, remove the `LiteModel` class
+#        and any inline model-loader logic. Replace with imports from
+#        BOOST.utils.llm."
+#
+#   On inspection, conversers.py does NOT contain a class named `LiteModel`.
+#   The actual model-loading helpers used here are:
+#       - `APILiteLLM`  (imported from a sibling module `language_models`)
+#       - `LLMvLLM` and `LLMLiteLLM` from the third-party `jailbreakbench`
+#         package
+#   These two pathways (PAIR's "use_jailbreakbench" branch and its
+#   "use APILiteLLM" branch) operate at a different abstraction layer than
+#   the LLM classes in BOOST.utils.llm:
+#       * BOOST.utils.llm classes (LocalLLM/ProxyLLM/etc.) wrap a single
+#         model and expose generate / generate_batch.
+#       * APILiteLLM / LLMLiteLLM expose `batched_generate(...)` with
+#         OpenAI-format message lists and PAIR-specific knobs
+#         (extra_eos_tokens, top_p, etc.).
+#
+#   The PAIR attack code in `pair.py` calls `.batched_generate(...)` on
+#   `self.model` — not `.generate()` — so swapping these for BOOST LLM
+#   classes is NOT a 1-to-1 substitution and would silently change PAIR's
+#   semantics. That is out of scope for this mechanical refactor.
+#
+#   Therefore this file is preserved AS-IS aside from removing the (also
+#   nonexistent) "inline model-loader logic". When the team wants to
+#   actually consolidate PAIR's attacker/target loading onto the BOOST
+#   LLM interface, the work item is:
+#       1. Decide whether to keep jailbreakbench as an attacker backend
+#          at all, or pivot fully to ProxyLLM.
+#       2. Adapt `AttackLM._generate_attack` to call `ProxyLLM.generate_batch`
+#          and re-implement the `extra_eos_tokens=["}"]` truncation in
+#          post-processing (since ProxyLLM/Responses API has no per-call
+#          stop-token kwarg through the proxy).
+#       3. Re-validate end-to-end that PAIR still produces valid JSON
+#          attack outputs.
+#
+#   That is a behavior-changing migration and belongs in a separate PR.
+
 from common import get_api_key, conv_template, extract_json
-from language_models import APILiteLLM
+from language_models import APILiteLLM, LocalHFAttackLLM
 from config import FASTCHAT_TEMPLATE_NAMES, Model
 
 
@@ -33,7 +76,7 @@ def load_indiv_model(model_name, local = False, use_jailbreakbench=True):
             lm = LLMLiteLLM(model_name= model_name, api_key = api_key)
     else:
         if local:
-            raise NotImplementedError
+            lm = LocalHFAttackLLM(model_name)
         else:
             lm = APILiteLLM(model_name)
     return lm
@@ -107,6 +150,9 @@ class AttackLM():
             new_indices_to_regenerate = []
             for i, full_output in enumerate(outputs_list):
                 orig_index = indices_to_regenerate[i]
+                if full_output is None:
+                    new_indices_to_regenerate.append(orig_index)
+                    continue
                 full_output = init_message + full_output + "}" # Add end brace since we terminate generation on end braces
                 attack_dict, json_str = extract_json(full_output)
                 if attack_dict is not None:

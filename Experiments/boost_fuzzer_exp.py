@@ -59,9 +59,18 @@ if __name__ == "__main__":
                         help='Path to the harmful questions dataset')
     parser.add_argument('--targets_dataset', type=str, default='Dataset/harmful_targets.csv',
                         help='Path to the harmful targets dataset')
+    parser.add_argument(
+                        "--dataset_split", type=str, default="train",
+                        choices=["train", "cn"],
+                        help="AABench split: 'train' (English/default) or 'cn' (Chinese)",)
     #SmoothLLM arguments
     parser.add_argument('--num_copies', type=int, default=6, help="Number of run copies for SmoothLLM")
     parser.add_argument('--evaluation', type=str, default='default', choices=['default', 'strongreject'], help='Evaluation method for attack success')
+    parser.add_argument(
+        '--evaluate_locally',
+        action='store_true',
+        help='Load attack model locally (HuggingFace) rather than via API.'
+    )
     add_model_args(parser)
 
     args = parser.parse_args()

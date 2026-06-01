@@ -10,9 +10,9 @@ import time
 import concurrent.futures
 from vllm import LLM as vllm
 from vllm import SamplingParams
+from BOOST.utils.llm import *  # noqa: F401,F403
 from BOOST.utils.constants import *
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
-#import google.generativeai as genai
 from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, AutoModel, Qwen2AudioForConditionalGeneration, AutoModelForImageTextToText
 import base64
 import requests

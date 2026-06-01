@@ -12,12 +12,16 @@ TARGET_TOP_P = 1
 class Model(Enum):
     vicuna = "vicuna-13b-v1.5"
     llama_2 = "llama-2-7b-chat-hf"
-    gpt_3_5 = "gpt-3.5-turbo-1106"
+    gpt_3_5 = "gpt-5.4"
     gpt_4 = "gpt-4-0125-preview"
     claude_1 = "claude-instant-1.2"
     claude_2 = "claude-2.1"
     gemini = "gemini-pro"
     mixtral = "mixtral"
+    llama_3_1_8b = "meta-llama/Llama-3.1-8B-Instruct"
+    mistral_7b = "mistralai/Mistral-7B-Instruct-v0.3"
+    qwen_2_5_7b = "Qwen/Qwen2.5-7B-Instruct"
+    gemma_3 = "google/gemma-3-4b-it"
 
 MODEL_NAMES = [model.value for model in Model]
 
@@ -31,7 +35,11 @@ HF_MODEL_NAMES: dict[Model, str] = {
 TOGETHER_MODEL_NAMES: dict[Model, str] = {
     Model.llama_2: "together_ai/togethercomputer/llama-2-7b-chat",
     Model.vicuna: "together_ai/lmsys/vicuna-13b-v1.5",
-    Model.mixtral: "together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1"
+    Model.mixtral: "together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1",
+    Model.llama_3_1_8b: "together_ai/meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+    Model.mistral_7b: "together_ai/mistralai/Mistral-7B-Instruct-v0.3",
+    Model.qwen_2_5_7b: "together_ai/Qwen/Qwen2.5-7B-Instruct-Turbo",
+    Model.gemma_3: "together_ai/google/gemma-3-4b-it",
 }
 
 FASTCHAT_TEMPLATE_NAMES: dict[Model, str] = {
@@ -43,6 +51,10 @@ FASTCHAT_TEMPLATE_NAMES: dict[Model, str] = {
     Model.vicuna: "vicuna_v1.1",
     Model.llama_2: "llama-2-7b-chat-hf",
     Model.mixtral: "mixtral",
+    Model.llama_3_1_8b: "llama-3",
+    Model.mistral_7b: "mistral",
+    Model.qwen_2_5_7b: "qwen-7b-chat",
+    Model.gemma_3: "gemma",
 }
 
 API_KEY_NAMES: dict[Model, str] = {
@@ -54,6 +66,10 @@ API_KEY_NAMES: dict[Model, str] = {
     Model.vicuna:   "TOGETHER_API_KEY",
     Model.llama_2:  "TOGETHER_API_KEY",
     Model.mixtral:  "TOGETHER_API_KEY",
+    Model.llama_3_1_8b: "TOGETHER_API_KEY",
+    Model.mistral_7b:   "TOGETHER_API_KEY",
+    Model.qwen_2_5_7b:  "TOGETHER_API_KEY",
+    Model.gemma_3:      "TOGETHER_API_KEY",
 }
 
 LITELLM_TEMPLATES: dict[Model, dict] = {

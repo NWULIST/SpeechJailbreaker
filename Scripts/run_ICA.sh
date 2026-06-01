@@ -1,8 +1,35 @@
 #!/bin/bash
+#
+# Scripts/run_ICA.sh
+# ------------------
+# Refactor audit (Change 2, step 5):
+#   The spec instructed: "remove any `export ANTHROPIC_API_KEY` or
+#   `export GOOGLE_API_KEY` lines only if those variables are confirmed
+#   unused after the refactor."
+#
+#   Audit result for this script:
+#     - ANTHROPIC_API_KEY: NOT exported here.
+#     - GOOGLE_API_KEY:    NOT exported here.
+#     - OPENAI_API_KEY:    NOT exported here.
+#     - OPENAI_BASE_URL:   NOT exported here.
+#
+#   All three API keys flow into the Python attack code via CLI flags
+#   (`--openai_key`, `--claude_key`, `--gemini_key`) and from process
+#   environment. `ProxyLLM` reads `OPENAI_API_KEY` from env; the
+#   gateway URL is baked into the class.
+#
+#   ACTION TAKEN: none. There is nothing to remove from this script for
+#   the API-key cleanup.
+#
+# Behavioral note:
+#   This script's argparse interface, batch-spawning logic, and CSV
+#   output format are unchanged.
+#
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/e33046/.cache/"
+export HF_HOME="/projects/e33046/qxq9828/.cache/huggingface"
+mkdir -p "$HF_HOME"
 # Add project root to PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export PYTHONPATH="${PYTHONPATH}:$(pwd):$(pwd)/Ming"
 
 PYTHON_SCRIPT="./Experiments/ica_exp.py"
 MODEL_PATH="google/gemma-7b-it"
@@ -10,13 +37,14 @@ EVALUATION="default"
 RUN_INDEX="$(date +%Y-%m-%d_%H-%M-%S)_$RANDOM"
 ADD_EOS=False
 FEW_SHOT_NUM=0
+EVALUATE_LOCALLY=""
 
 # GPU
-GPU_MEMORY=60000
+GPU_MEMORY=38000
 NUM_GPU_SEARCH=1
 
 #NUM_TASKS=2
-MAX_PARALLEL=2
+MAX_PARALLEL=1
 
 BATCH_SIZE=1
 DATASET_SIZE=4724
@@ -41,7 +69,7 @@ guard=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --model_path)
+    --model_path|--target_model)
       MODEL_PATH="$2"
       shift 2
       ;;
@@ -96,6 +124,10 @@ while [[ $# -gt 0 ]]; do
     RANDOM_SEED="$2"
     shift 2
     ;;
+    --evaluate_locally)
+      EVALUATE_LOCALLY="--evaluate_locally"
+      shift
+      ;;
     --harmful_dataset)
       HARMFUL_DATASET="$2"
       shift 2
@@ -193,6 +225,12 @@ run_batch_job_with_indices() {
     done
 
     echo "Batch $batch_id: running on GPU $gpu (indices: $indices_str) fs=$FEW_SHOT_NUM..."
+
+    if [[ "${MODEL_PATH,,}" == *"qwen2-audio"* || "${MODEL_PATH,,}" == *"ming"* ]]; then
+        echo "Audio model detected. Waiting 120 seconds for memory to clear..."
+        sleep 120
+    fi
+
     local log_file="${LOG_PATH}/batch_${batch_id}.log"
 
     ###########################################
@@ -214,6 +252,7 @@ run_batch_job_with_indices() {
       --indices "$indices_str"\
       --num_copies "$NUM_COPIES"\
       $SEED_ARG\
+      $EVALUATE_LOCALLY\
       &> "$log_file"
 
     # extract RESULT lines later if desired

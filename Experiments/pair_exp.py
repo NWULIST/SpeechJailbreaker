@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--attack_model', 
         type=str, 
-        default='gpt-3.5-turbo-1106',
+        default='gpt-5.4',
         help='The attack model'
     )
     parser.add_argument(
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--target_model', 
         type=str, 
-        default='gpt-3.5-turbo-1106',
+        default='gpt-5.4',
         help='The target model'
     )
     parser.add_argument(
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--judge_model",
-        default="gpt-3.5-turbo-1106", #TODO changed
+        default="gpt-5.4", #TODO changed
         help="Name of judge model. Defaults to the Llama Guard model from JailbreakBench."
     )
     parser.add_argument(
