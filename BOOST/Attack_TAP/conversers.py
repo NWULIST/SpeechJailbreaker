@@ -94,7 +94,11 @@ class AttackLLM():
                 full_prompts.append(conv.to_openai_api_messages())
             else:
                 conv.append_message(conv.roles[1], init_message)
-                full_prompts.append(conv.get_prompt()[:-len(conv.sep2)])
+                # Vicuna-style templates terminate the assistant turn with sep2;
+                # ChatML-style templates (e.g. qwen-7b-chat) have no sep2 and
+                # instead terminate every turn with sep + "\n".
+                trailing_sep = conv.sep2 if conv.sep2 else (conv.sep + "\n")
+                full_prompts.append(conv.get_prompt()[:-len(trailing_sep)])
             
         for _ in range(self.max_n_attack_attempts):
             # Subset conversations based on indices to regenerate

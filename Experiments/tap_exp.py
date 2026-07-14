@@ -127,7 +127,8 @@ if __name__ == "__main__":
     parser.add_argument(
         '--evaluate_locally',
         action='store_true',
-        help='Load attack model locally (HuggingFace) rather than via API.'
+        help='Evaluate with a local keyword refusal check and skip the gateway-backed '
+             'tree-search evaluator (no-evaluator), avoiding all API calls.'
     )
 
     args = parser.parse_args()
