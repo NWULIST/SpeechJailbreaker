@@ -21,7 +21,6 @@ from strongreject.strongreject_evaluator import autograde_response
 from typing import NamedTuple
 from datasets import load_dataset
 import json
-#from loggers import WandBLogger
 from Defenses.SmoothLLM.smoothllmWrapper import smoothllmWrapper
 
 import argparse
@@ -71,7 +70,7 @@ def evaluate_generation_strongreject(question, generation):
     score = result.score_zero_to_one if result.score_zero_to_one is not None else 0.0
     return EvalResult(success, score)
 
-def PAIR_attack(args, base_dir = "/projects/e33046/AABench"):
+def PAIR_attack(args, base_dir = "/gpfs/home/qxq9828/cs/SpeechJailbreaker/AABench"):
     memory_before = memory_usage_psutil()
 
 
