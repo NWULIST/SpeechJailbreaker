@@ -26,7 +26,7 @@
 #   output format are unchanged.
 #
 module load cuda/cuda-12.1.0-openmpi-4.1.4
-export HF_HOME="/projects/e33046/qxq9828/.cache/huggingface"
+export HF_HOME="/projects/e32695/qxq9828/hf_cache"
 mkdir -p "$HF_HOME"
 # Add project root to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd):$(pwd)/Ming"
